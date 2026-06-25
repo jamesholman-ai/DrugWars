@@ -1,0 +1,328 @@
+import {
+  InventoryUpgradeDefinition,
+  CityUnlockRequirements,
+  RankDefinition,
+  ReputationTierDefinition,
+  StashHouseDefinition,
+} from '../types/progression';
+import { AreaId } from '../types/game';
+
+export const BASE_INVENTORY_CAPACITY = 100;
+
+/** Cities available from day one on a new run. */
+export const STARTING_UNLOCKED_CITIES = [
+  'new_york',
+  'miami',
+  'atlanta',
+] as const;
+
+/** @deprecated */
+export const STARTING_UNLOCKED_LOCATIONS = STARTING_UNLOCKED_CITIES;
+
+export const RANKS: RankDefinition[] = [
+  {
+    id: 'wannabe',
+    name: 'Wannabe',
+    description: 'Fresh on the block. Nobody knows your name yet.',
+    requirements: {},
+    benefits: ['Access to New York, Miami, Atlanta'],
+  },
+  {
+    id: 'runner',
+    name: 'Runner',
+    description: 'You move product and stay out of cuffs. Barely.',
+    requirements: { reputation: 12, netWorth: 2500, daysSurvived: 3 },
+    benefits: ['Chicago routes open', 'Better street cred'],
+  },
+  {
+    id: 'hustler',
+    name: 'Hustler',
+    description: 'Small-time but steady. Corners remember your face.',
+    requirements: {
+      reputation: 25,
+      netWorth: 8000,
+      lifetimeProfit: 2000,
+      daysSurvived: 8,
+    },
+    benefits: ['Detroit & Austin access', 'Supplier deals improve'],
+  },
+  {
+    id: 'dealer',
+    name: 'Dealer',
+    description: 'Real volume. Real heat. Real money.',
+    requirements: {
+      reputation: 35,
+      netWorth: 15000,
+      lifetimeProfit: 6000,
+      daysSurvived: 15,
+    },
+    benefits: ['Seattle & Boston access', 'Bulk buyer interest'],
+  },
+  {
+    id: 'plug',
+    name: 'Plug',
+    description: 'Wholesale connects. You set the tempo.',
+    requirements: {
+      reputation: 50,
+      netWorth: 35000,
+      lifetimeProfit: 15000,
+      daysSurvived: 25,
+    },
+    benefits: ['Vegas & SF routes unlock', 'Crew respect on the street'],
+  },
+  {
+    id: 'shot_caller',
+    name: 'Shot Caller',
+    description: 'Territory bends when you walk through.',
+    requirements: {
+      reputation: 65,
+      netWorth: 75000,
+      lifetimeProfit: 35000,
+      daysSurvived: 40,
+    },
+    benefits: ['Toronto access', 'Premium stash options'],
+  },
+  {
+    id: 'kingpin',
+    name: 'Kingpin',
+    description: 'Nationwide name. Enforcers know the invoice.',
+    requirements: {
+      reputation: 80,
+      netWorth: 150000,
+      lifetimeProfit: 80000,
+      daysSurvived: 60,
+    },
+    benefits: ['London access', 'Elite upgrade tiers'],
+  },
+  {
+    id: 'empire_boss',
+    name: 'Empire Boss',
+    description: 'The underworld runs on your schedule.',
+    requirements: {
+      reputation: 90,
+      netWorth: 300000,
+      lifetimeProfit: 200000,
+      daysSurvived: 90,
+    },
+    benefits: ['Paris & Amsterdam unlock', 'Legend status'],
+  },
+];
+
+export const RANK_MAP = Object.fromEntries(RANKS.map((r) => [r.id, r])) as Record<
+  RankDefinition['id'],
+  RankDefinition
+>;
+
+export const REPUTATION_TIERS: ReputationTierDefinition[] = [
+  { id: 'unknown', name: 'Unknown', minReputation: 0 },
+  { id: 'noticed', name: 'Noticed', minReputation: 15 },
+  { id: 'connected', name: 'Connected', minReputation: 30 },
+  { id: 'feared', name: 'Feared', minReputation: 45 },
+  { id: 'respected', name: 'Respected', minReputation: 60 },
+  { id: 'untouchable', name: 'Untouchable', minReputation: 80 },
+];
+
+export const CITY_UNLOCK_REQUIREMENTS: Record<string, CityUnlockRequirements> = {
+  los_angeles: {
+    rankId: 'runner',
+    reputation: 18,
+    cash: 3500,
+    daysSurvived: 4,
+  },
+  chicago: {
+    rankId: 'runner',
+    reputation: 22,
+    daysSurvived: 5,
+  },
+  detroit: {
+    rankId: 'hustler',
+    reputation: 28,
+    daysSurvived: 10,
+  },
+  austin: {
+    rankId: 'hustler',
+    netWorth: 9000,
+    daysSurvived: 12,
+  },
+  seattle: {
+    rankId: 'dealer',
+    netWorth: 12000,
+    daysSurvived: 18,
+  },
+  boston: {
+    rankId: 'dealer',
+    reputation: 38,
+    daysSurvived: 16,
+  },
+  las_vegas: {
+    rankId: 'plug',
+    reputation: 52,
+    netWorth: 28000,
+    daysSurvived: 28,
+  },
+  san_francisco: {
+    rankId: 'plug',
+    netWorth: 32000,
+    daysSurvived: 30,
+  },
+  toronto: {
+    rankId: 'shot_caller',
+    netWorth: 65000,
+    daysSurvived: 38,
+  },
+  london: {
+    rankId: 'kingpin',
+    reputation: 78,
+    netWorth: 120000,
+    daysSurvived: 55,
+  },
+  paris: {
+    rankId: 'empire_boss',
+    reputation: 88,
+    netWorth: 250000,
+    daysSurvived: 80,
+  },
+  amsterdam: {
+    rankId: 'empire_boss',
+    netWorth: 280000,
+    daysSurvived: 85,
+  },
+};
+
+/** @deprecated Use CITY_UNLOCK_REQUIREMENTS */
+export const LOCATION_UNLOCK_REQUIREMENTS = CITY_UNLOCK_REQUIREMENTS;
+
+export const INVENTORY_UPGRADES: InventoryUpgradeDefinition[] = [
+  {
+    id: 'bigger_pockets',
+    name: 'Bigger Pockets',
+    description: 'Sewn-in pockets for small runs.',
+    cost: 750,
+    capacityBonus: 25,
+    order: 0,
+  },
+  {
+    id: 'backpack',
+    name: 'Backpack',
+    description: 'Dedicated carry bag for mid-size loads.',
+    cost: 1800,
+    capacityBonus: 35,
+    order: 1,
+  },
+  {
+    id: 'hidden_compartments',
+    name: 'Hidden Compartments',
+    description: 'False panels in your ride.',
+    cost: 4000,
+    capacityBonus: 50,
+    order: 2,
+  },
+  {
+    id: 'runner_crew',
+    name: 'Runner Crew',
+    description: 'Two trusted couriers on call.',
+    cost: 8500,
+    capacityBonus: 75,
+    order: 3,
+  },
+  {
+    id: 'cargo_van',
+    name: 'Cargo Van',
+    description: 'Serious bulk. Serious risk.',
+    cost: 16000,
+    capacityBonus: 100,
+    order: 4,
+  },
+];
+
+export const INVENTORY_UPGRADE_MAP = Object.fromEntries(
+  INVENTORY_UPGRADES.map((u) => [u.id, u])
+);
+
+export const STASH_HOUSES: StashHouseDefinition[] = [
+  {
+    id: 'stash_new_york',
+    cityId: 'new_york',
+    areaId: 'new_york_downtown',
+    name: 'Manhattan Safehouse',
+    description: 'Basement unit off the main strip. Low profile.',
+    cost: 4500,
+    capacityBonus: 35,
+    robberyReduction: 0.22,
+    extraHeatDecay: 1,
+  },
+  {
+    id: 'stash_miami',
+    cityId: 'miami',
+    areaId: 'miami_port',
+    name: 'Miami Dock Cache',
+    description: 'Container locker with a blind eye.',
+    cost: 3800,
+    capacityBonus: 30,
+    robberyReduction: 0.18,
+    extraHeatDecay: 1,
+  },
+  {
+    id: 'stash_atlanta',
+    cityId: 'atlanta',
+    areaId: 'atlanta_zone_6',
+    name: 'ATL Club Stash',
+    description: 'Back-room locker behind the clubs.',
+    cost: 3200,
+    capacityBonus: 30,
+    robberyReduction: 0.15,
+    extraHeatDecay: 1,
+  },
+  {
+    id: 'stash_detroit',
+    cityId: 'detroit',
+    areaId: 'detroit_industrial',
+    name: 'Detroit Industrial Vault',
+    description: 'Locked container on the rail line.',
+    cost: 7000,
+    capacityBonus: 55,
+    robberyReduction: 0.25,
+    extraHeatDecay: 2,
+  },
+  {
+    id: 'stash_vegas',
+    cityId: 'las_vegas',
+    areaId: 'las_vegas_strip',
+    name: 'Vegas Strip Drop',
+    description: 'Casino back-of-house locker.',
+    cost: 8500,
+    capacityBonus: 45,
+    robberyReduction: 0.2,
+    extraHeatDecay: 1,
+  },
+  {
+    id: 'stash_london',
+    cityId: 'london',
+    areaId: 'london_central',
+    name: 'London Flat Stash',
+    description: 'Council flat with a hidden floor safe.',
+    cost: 11000,
+    capacityBonus: 50,
+    robberyReduction: 0.22,
+    extraHeatDecay: 1,
+  },
+  {
+    id: 'stash_amsterdam',
+    cityId: 'amsterdam',
+    areaId: 'amsterdam_centrum',
+    name: 'Canal House Cache',
+    description: 'Attic room above a coffee shop.',
+    cost: 9500,
+    capacityBonus: 40,
+    robberyReduction: 0.18,
+    extraHeatDecay: 2,
+  },
+];
+
+export const STASH_HOUSE_MAP = Object.fromEntries(
+  STASH_HOUSES.map((s) => [s.id, s])
+);
+
+export function getStashAreaKey(stash: StashHouseDefinition): string {
+  return `${stash.cityId}:${stash.areaId}`;
+}
