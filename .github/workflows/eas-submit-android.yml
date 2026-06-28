@@ -1,71 +1,21 @@
-# =============================================================================
-# EAS Submit — Android (Google Play) — DOCUMENTATION ONLY / NOT ENABLED
-# =============================================================================
+# Android Play Store submit — disabled until Google Play service account is configured.
 #
-# This workflow is intentionally disabled. No Google Play service account
-# credentials are configured in this repository yet.
+# When ready:
+#   1. Add GitHub secrets: EXPO_TOKEN, GOOGLE_SERVICE_ACCOUNT (service account JSON)
+#   2. Remove `if: false` from the job and replace the placeholder step with:
+#        - checkout, setup-node, npm ci, eas-cli install
+#        - write GOOGLE_SERVICE_ACCOUNT to google-play-key.json
+#        - eas submit --platform android --profile production --latest --non-interactive
+#          env: EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 #
-# When you are ready to automate Play Store uploads:
-#
-# 1. Create a Google Play service account with release permissions
-#    (Google Play Console → Setup → API access)
-#
-# 2. Download the JSON key and add GitHub secrets:
-#      EXPO_TOKEN              — Expo access token (same as build workflows)
-#      GOOGLE_SERVICE_ACCOUNT  — full JSON contents of the service account key
-#
-# 3. Configure eas.json submit.production with your track, e.g.:
-#      "submit": {
-#        "production": {
-#          "android": {
-#            "serviceAccountKeyPath": "./google-play-key.json",
-#            "track": "internal"
-#          }
-#        }
-#      }
-#    In CI, write GOOGLE_SERVICE_ACCOUNT secret to a temp file and point EAS at it.
-#
-# 4. Uncomment the workflow below and remove this notice block.
-#
-# Manual submit today (after a production build completes):
-#   eas submit --platform android --profile production --latest
-#
-# =============================================================================
-#
-# name: EAS Submit Android
-#
-# on:
-#   workflow_dispatch:
-#
-# jobs:
-#   submit-production:
-#     name: EAS Submit (Android production)
-#     runs-on: ubuntu-latest
-#     timeout-minutes: 30
-#
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v4
-#
-#       - name: Setup Node.js 24
-#         uses: actions/setup-node@v4
-#         with:
-#           node-version: '24'
-#           cache: npm
-#
-#       - name: Install dependencies
-#         run: npm ci
-#
-#       - name: Install EAS CLI
-#         run: npm install -g eas-cli@latest
-#
-#       - name: Write Google Play service account key
-#         env:
-#           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
-#         run: |
-#           printf '%s' "$GOOGLE_SERVICE_ACCOUNT" > google-play-key.json
-#
-#       - name: EAS Submit — Android production (latest build)
-#         env:
-#           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-#         run: eas submit --platform android --profile production --latest --non-interactive
+name: EAS Submit Android
+
+on:
+  workflow_dispatch:
+
+jobs:
+  submit-android:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Android submit workflow disabled until Google Play service account is configured."
