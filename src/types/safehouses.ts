@@ -1,5 +1,6 @@
 import type { InventoryItem } from './game';
 import type { RankId } from './progression';
+import type { EmpireEventEntry, PropertyUpgradeLevels } from './empire';
 
 export type SafehouseTier =
   | 'motel_room'
@@ -35,6 +36,9 @@ export interface OwnedSafehouse {
   upkeepMissedDays: number;
   /** 0–100; drops when upkeep unpaid. */
   condition: number;
+  assignedGuardCrewId?: string | null;
+  upgradeLevels?: PropertyUpgradeLevels;
+  recentEvents?: EmpireEventEntry[];
 }
 
 /** Stored inventory keyed by safehouse id. */

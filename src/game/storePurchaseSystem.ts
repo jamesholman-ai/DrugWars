@@ -98,7 +98,7 @@ function buildSummaryParts(effects: ProductEffects): string[] {
   if (effects.dirtyCash) parts.push(`+$${effects.dirtyCash.toLocaleString()} cash`);
   if (effects.debtReduction) parts.push(`−$${effects.debtReduction.toLocaleString()} debt`);
   if (effects.intelTips) {
-    parts.push(`+${effects.intelTips} Intel Tip${effects.intelTips === 1 ? '' : 's'}`);
+    parts.push(`+${effects.intelTips} reveal token${effects.intelTips === 1 ? '' : 's'}`);
   }
   if (effects.lawyerTokens) {
     parts.push(
@@ -250,7 +250,7 @@ export function getCategoryInventorySummary(
     case 'legal':
       return inv.lawyerTokens > 0 ? `${inv.lawyerTokens} token(s) ready` : null;
     case 'intel':
-      return inv.intelTips > 0 ? `${inv.intelTips} tip(s) ready` : null;
+      return inv.intelTips > 0 ? `${inv.intelTips} reveal token(s)` : null;
     case 'storage':
       return inv.robberyProtectionTokens > 0
         ? `${inv.robberyProtectionTokens} raid token(s)`

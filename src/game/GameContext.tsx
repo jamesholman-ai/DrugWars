@@ -44,6 +44,17 @@ import { MISSION_MAP } from '../data/missions';
 import { RewardClaimFeedback, RewardClaimToast } from '../components/RewardClaimToast';
 import { advanceTutorialStep, skipTutorial as skipTutorialEngine } from './tutorialSystem';
 import { hireCrewMember, fireCrewMember } from './crewSystem';
+import { assignCrewMember } from './crewManagementSystem';
+import {
+  upgradeBusiness as upgradeBusinessEngine,
+  assignBusinessManager as assignBusinessManagerEngine,
+  layLowThroughBusiness as layLowThroughBusinessEngine,
+} from './businessManagementSystem';
+import {
+  upgradeProperty as upgradePropertyEngine,
+  assignPropertyGuard as assignPropertyGuardEngine,
+  layLowAtProperty as layLowAtPropertyEngine,
+} from './propertyManagementSystem';
 import {
   clearSavedGame,
   loadGameState,
@@ -51,20 +62,16 @@ import {
 } from './saveStorage';
 import { normalizeGameState } from './stateUtils';
 import { ProductId } from '../types/products';
-import {
-  loadEntitlementState,
-  recordPurchase,
-  saveEntitlementState,
-} from './entitlements';
-import {
-  purchaseProduct as purchaseProductBilling,
-  isStorePurchaseEnabled,
-} from '../services/platformBilling';
-import {
-  applyStorePurchase,
-  validateStorePurchase,
-} from './storePurchaseSystem';
+import { CrewAssignment, BusinessUpgradeKind, PropertyUpgradeKind } from '../types/empire';
+import { revealIntelWithToken } from './intelSystem';
 import { createDefaultStoreInventory } from '../types/store';
+import { useStore } from '../context/StoreContext';
+import {
+  mergeRunStoreInventoryIntoProfile,
+  stripPersistentTokensFromStoreInventory,
+} from './profileStorage';
+import { getStoreInventory, withStoreInventory } from './storeInventory';
+import { useLawyerToken } from './consumableUseSystem';
 
 function applyUpdate(
   prev: GameState | null,
@@ -82,6 +89,7 @@ interface GameContextValue {
   startNewGame: () => Promise<GameState>;
   continueGame: () => Promise<boolean>;
   resetSave: () => Promise<void>;
+  resetAllData: () => Promise<void>;
   buy: (commodityId: CommodityId, quantity: number) => void;
   sell: (commodityId: CommodityId, quantity: number) => void;
   travelToArea: (areaId: AreaId) => void;
@@ -106,15 +114,23 @@ interface GameContextValue {
   fulfillContract: (contractId: string) => void;
   hireCrew: (recruitId: string) => void;
   fireCrew: (crewId: string) => void;
+  assignCrew: (crewId: string, assignment: CrewAssignment, targetId?: string) => void;
   purchaseSafehouse: (safehouseId: string) => void;
   depositToSafehouse: (safehouseId: string, commodityId: CommodityId, quantity: number) => void;
   withdrawFromSafehouse: (safehouseId: string, commodityId: CommodityId, quantity: number) => void;
   purchaseBusiness: (businessId: string) => void;
   repairBusiness: (businessId: string) => void;
+  upgradeBusinessAction: (businessId: string, kind: BusinessUpgradeKind) => void;
+  assignBusinessManager: (businessId: string, crewId: string | null) => void;
+  layLowBusiness: (businessId: string) => void;
+  upgradePropertyAction: (safehouseId: string, kind: PropertyUpgradeKind) => void;
+  assignPropertyGuard: (safehouseId: string, crewId: string | null) => void;
+  layLowProperty: (safehouseId: string) => void;
   claimMissionReward: (missionId: string) => void;
   claimDailyObjective: (objectiveId: string) => void;
+  revealIntel: () => void;
+  useConsumable: (productId: ProductId) => Promise<{ ok: boolean; message: string }>;
   isClaimingReward: (claimKey: string) => boolean;
-  purchaseStoreProduct: (productId: ProductId) => Promise<{ ok: boolean; message: string }>;
   advanceTutorial: () => void;
   skipTutorial: () => void;
   endGame: () => void;
@@ -123,6 +139,13 @@ interface GameContextValue {
 const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
+  const {
+    profile,
+    persistProfile,
+    useStoreCredit,
+    resetPlayerProfile,
+    isStoreReady: isProfileReady,
+  } = useStore();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [hasSavedGame, setHasSavedGame] = useState(false);
   const [isStorageReady, setIsStorageReady] = useState(false);
@@ -166,14 +189,25 @@ export function GameProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    if (!isProfileReady) return;
     let mounted = true;
 
-    (async () => {
+    void (async () => {
       const loaded = await loadGameState();
       if (!mounted) return;
 
       if (loaded) {
-        setGameState(loaded);
+        const storeInv = getStoreInventory(loaded);
+        const mergedProfile = mergeRunStoreInventoryIntoProfile(profile, storeInv);
+        if (mergedProfile !== profile) {
+          await persistProfile(mergedProfile);
+        }
+        const stripped = stripPersistentTokensFromStoreInventory(storeInv);
+        const normalized = normalizeGameState(withStoreInventory(loaded, stripped));
+        setGameState(normalized);
+        if (stripped !== storeInv) {
+          await saveGameState(normalized);
+        }
         setHasSavedGame(true);
       }
       setIsStorageReady(true);
@@ -182,9 +216,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isProfileReady]);
 
   const startNewGame = useCallback(async (): Promise<GameState> => {
+    let nextProfile = profile;
+    if (gameState) {
+      nextProfile = mergeRunStoreInventoryIntoProfile(profile, getStoreInventory(gameState));
+      await persistProfile(nextProfile);
+    }
+
     const state = normalizeGameState({
       ...createInitialGameState(),
       storeInventory: createDefaultStoreInventory(),
@@ -193,7 +233,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setHasSavedGame(true);
     await persist(state);
     return state;
-  }, [persist]);
+  }, [persist, profile, gameState, persistProfile]);
 
   const continueGame = useCallback(async (): Promise<boolean> => {
     if (gameState) {
@@ -214,6 +254,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setGameState(null);
     setHasSavedGame(false);
   }, []);
+
+  const resetAllData = useCallback(async () => {
+    await clearSavedGame();
+    await resetPlayerProfile();
+    setGameState(null);
+    setHasSavedGame(false);
+  }, [resetPlayerProfile]);
 
   const buy = useCallback(
     (commodityId: CommodityId, quantity: number) => {
@@ -299,8 +346,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [commitUpdate]);
 
   const hireLawyer = useCallback(() => {
+    if (profile.consumables.emergencyLawyerTokens > 0 && gameState) {
+      const result = useLawyerToken(profile, gameState);
+      if (result.ok) {
+        void persistProfile(result.profile);
+        const next = normalizeGameState(result.state);
+        setGameState(next);
+        void persist(next);
+        return;
+      }
+    }
     commitUpdate((s) => hireLawyerHeat(s));
-  }, [commitUpdate]);
+  }, [commitUpdate, profile, gameState, persistProfile, persist]);
 
   const useSafehouseAction = useCallback(() => {
     commitUpdate((s) => useSafehouse(s));
@@ -353,6 +410,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [commitUpdate]
   );
 
+  const assignCrew = useCallback(
+    (crewId: string, assignment: CrewAssignment, targetId?: string) => {
+      commitUpdate((s) => assignCrewMember(s, crewId, assignment, targetId));
+    },
+    [commitUpdate]
+  );
+
   const purchaseSafehouse = useCallback(
     (safehouseId: string) => {
       commitUpdate((s) => purchaseSafehouseEngine(s, safehouseId));
@@ -384,6 +448,48 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const repairBusiness = useCallback(
     (businessId: string) => {
       commitUpdate((s) => repairBusinessEngine(s, businessId));
+    },
+    [commitUpdate]
+  );
+
+  const upgradeBusinessAction = useCallback(
+    (businessId: string, kind: BusinessUpgradeKind) => {
+      commitUpdate((s) => upgradeBusinessEngine(s, businessId, kind));
+    },
+    [commitUpdate]
+  );
+
+  const assignBusinessManager = useCallback(
+    (businessId: string, crewId: string | null) => {
+      commitUpdate((s) => assignBusinessManagerEngine(s, businessId, crewId));
+    },
+    [commitUpdate]
+  );
+
+  const layLowBusiness = useCallback(
+    (businessId: string) => {
+      commitUpdate((s) => layLowThroughBusinessEngine(s, businessId));
+    },
+    [commitUpdate]
+  );
+
+  const upgradePropertyAction = useCallback(
+    (safehouseId: string, kind: PropertyUpgradeKind) => {
+      commitUpdate((s) => upgradePropertyEngine(s, safehouseId, kind));
+    },
+    [commitUpdate]
+  );
+
+  const assignPropertyGuard = useCallback(
+    (safehouseId: string, crewId: string | null) => {
+      commitUpdate((s) => assignPropertyGuardEngine(s, safehouseId, crewId));
+    },
+    [commitUpdate]
+  );
+
+  const layLowProperty = useCallback(
+    (safehouseId: string) => {
+      commitUpdate((s) => layLowAtPropertyEngine(s, safehouseId));
     },
     [commitUpdate]
   );
@@ -473,58 +579,35 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [activeClaimKey, persist, showClaimFeedback]
   );
 
+  const revealIntel = useCallback(() => {
+    setGameState((prev) => {
+      if (!prev) return prev;
+      const { state, profile: nextProfile } = revealIntelWithToken(prev, profile);
+      void persistProfile(nextProfile);
+      void persist(state);
+      return normalizeGameState(state);
+    });
+  }, [profile, persistProfile, persist]);
+
+  const useConsumable = useCallback(
+    async (productId: ProductId): Promise<{ ok: boolean; message: string }> => {
+      if (!gameState) {
+        return { ok: false, message: 'Start or continue a game to use consumables.' };
+      }
+      const result = useStoreCredit(productId, gameState);
+      if (result.ok) {
+        const next = normalizeGameState(result.state);
+        setGameState(next);
+        await persist(next);
+      }
+      return { ok: result.ok, message: result.message };
+    },
+    [gameState, useStoreCredit, persist]
+  );
+
   const isClaimingReward = useCallback(
     (claimKey: string) => activeClaimKey === claimKey,
     [activeClaimKey]
-  );
-
-  const purchaseStoreProduct = useCallback(
-    async (productId: ProductId): Promise<{ ok: boolean; message: string }> => {
-      if (!isStorePurchaseEnabled()) {
-        return {
-          ok: false,
-          message: 'Store purchases are not enabled yet.',
-        };
-      }
-
-      if (!gameState) {
-        return {
-          ok: false,
-          message: 'Start or continue a game before purchasing consumables.',
-        };
-      }
-
-      const validation = validateStorePurchase(gameState, productId);
-      if (!validation.ok) {
-        return { ok: false, message: validation.error };
-      }
-
-      const billing = await purchaseProductBilling(productId);
-      if (!billing.ok) {
-        return { ok: false, message: billing.error };
-      }
-
-      const applied = applyStorePurchase(gameState, productId);
-      if (!applied.ok) {
-        return { ok: false, message: applied.error };
-      }
-
-      const next = normalizeGameState(applied.state);
-      setGameState(next);
-      await persist(next);
-
-      const entitlements = await loadEntitlementState();
-      await saveEntitlementState(
-        recordPurchase(entitlements, {
-          productId,
-          purchasedAt: new Date().toISOString(),
-          source: 'purchase',
-        })
-      );
-
-      return { ok: true, message: applied.summary };
-    },
-    [gameState, persist]
   );
 
   const advanceTutorial = useCallback(() => {
@@ -548,6 +631,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       startNewGame,
       continueGame,
       resetSave,
+      resetAllData,
       buy,
       sell,
       travelToArea: travelArea,
@@ -572,15 +656,23 @@ export function GameProvider({ children }: { children: ReactNode }) {
       fulfillContract,
       hireCrew,
       fireCrew,
+      assignCrew,
       purchaseSafehouse,
       depositToSafehouse,
       withdrawFromSafehouse,
       purchaseBusiness,
       repairBusiness,
+      upgradeBusinessAction,
+      assignBusinessManager,
+      layLowBusiness,
+      upgradePropertyAction,
+      assignPropertyGuard,
+      layLowProperty,
       claimMissionReward,
       claimDailyObjective,
+      revealIntel,
+      useConsumable,
       isClaimingReward,
-      purchaseStoreProduct,
       advanceTutorial,
       skipTutorial,
       endGame,
@@ -592,6 +684,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       startNewGame,
       continueGame,
       resetSave,
+      resetAllData,
       buy,
       sell,
       travelArea,
@@ -616,15 +709,23 @@ export function GameProvider({ children }: { children: ReactNode }) {
       fulfillContract,
       hireCrew,
       fireCrew,
+      assignCrew,
       purchaseSafehouse,
       depositToSafehouse,
       withdrawFromSafehouse,
       purchaseBusiness,
       repairBusiness,
+      upgradeBusinessAction,
+      assignBusinessManager,
+      layLowBusiness,
+      upgradePropertyAction,
+      assignPropertyGuard,
+      layLowProperty,
       claimMissionReward,
       claimDailyObjective,
+      revealIntel,
+      useConsumable,
       isClaimingReward,
-      purchaseStoreProduct,
       advanceTutorial,
       skipTutorial,
       endGame,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { AccentTone, accentMap, fonts, palette, radius, spacing } from '../../theme/theme';
+import { AccentTone, accentMap, palette, radius, spacing, typography } from '../../theme/theme';
 
 interface EventBannerProps {
   label: string;
@@ -12,9 +12,9 @@ export function EventBanner({ label, message, tone = 'neutral' }: EventBannerPro
   const accent = accentMap[tone];
 
   return (
-    <View style={[styles.banner, { borderLeftColor: accent.text }]}>
+    <View style={[styles.banner, { borderColor: accent.border, backgroundColor: accent.bg }]}>
       <Text style={[styles.label, { color: accent.text }]}>{label}</Text>
-      <Text style={styles.message} numberOfLines={2}>
+      <Text style={styles.message} numberOfLines={3}>
         {message}
       </Text>
     </View>
@@ -23,27 +23,20 @@ export function EventBanner({ label, message, tone = 'neutral' }: EventBannerPro
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: palette.bgCard,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: palette.border,
-    borderLeftWidth: 3,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.sm,
   },
   label: {
-    fontFamily: fonts.display,
-    fontSize: 9,
+    fontSize: typography.caption,
     fontWeight: '800',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   message: {
     color: palette.textSecondary,
-    fontFamily: fonts.body,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: typography.caption,
+    lineHeight: 18,
   },
 });

@@ -46,7 +46,7 @@ export function ContactsScreen({ navigation }: Props) {
           rankProgress={computeRankProgressPercent(gameState)}
         />
       }
-      bottomNav={<GameNavFooter navigation={navigation} active="Progress" />}
+      bottomNav={<GameNavFooter navigation={navigation} active="More" />}
     >
       <SectionCard title="Street Network" tone="purple">
         <Text style={styles.intro}>

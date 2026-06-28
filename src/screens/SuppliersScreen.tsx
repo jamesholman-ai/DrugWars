@@ -58,7 +58,7 @@ export function SuppliersScreen({ navigation }: Props) {
           rankProgress={computeRankProgressPercent(gameState)}
         />
       }
-      bottomNav={<GameNavFooter navigation={navigation} active="Suppliers" />}
+      bottomNav={<GameNavFooter navigation={navigation} active="Operations" />}
     >
       <View style={styles.moneyRow}>
         <MoneyCard label="Cash" amount={formatMoney(player.cash)} tone="green" icon="💵" />

@@ -22,6 +22,7 @@ import {
 } from './combat';
 import { parseEncounterChoice } from './encounterSystem';
 import { applyProgressionAfterAction } from './progression';
+import { tryTriggerIntelReveal } from './intelSystem';
 
 function getInventoryCount(inventory: InventoryItem[]): number {
   return inventory.reduce((sum, item) => sum + item.quantity, 0);
@@ -275,6 +276,9 @@ function applyEncounterOutcome(
 
   next = checkGameOverState(next);
   next = withMessage(next, message);
+  if (template.informantProtectionDays || encounter.id.includes('informant')) {
+    next = tryTriggerIntelReveal(next, 'informant');
+  }
   return applyProgressionAfterAction(next);
 }
 

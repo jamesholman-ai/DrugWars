@@ -5,6 +5,7 @@ import { ActionMessage } from '../components/ActionMessage';
 import { GameButton } from '../components/GameButton';
 import { GameNavFooter } from '../components/GameNavFooter';
 import { AppShell, EventBanner, ScreenHeader, SectionCard } from '../components/ui';
+import { EmptyState, MissionCard } from '../components/premium';
 import { useGame } from '../game/GameContext';
 import { STORY_ARC_LABELS, StoryArcId, MISSION_MAP } from '../data/missions';
 import {
@@ -18,10 +19,17 @@ import { getAreaLabel } from '../data/locations';
 import { getCurrentRank } from '../game/progression';
 import { RootStackParamList } from '../types/game';
 import { computeRankProgressPercent } from '../utils/rankProgress';
-import { fonts, palette, radius, spacing } from '../theme/theme';
+import { palette, radius, spacing, typography } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Missions'>;
 type Tab = 'story' | 'active' | 'daily' | 'completed';
+
+const TAB_LABELS: Record<Tab, string> = {
+  story: 'Story',
+  active: 'Active',
+  daily: 'Daily',
+  completed: 'Done',
+};
 
 export function MissionsScreen({ navigation }: Props) {
   const { gameState, claimMissionReward, claimDailyObjective, isClaimingReward } = useGame();
@@ -64,18 +72,19 @@ export function MissionsScreen({ navigation }: Props) {
       header={
         <ScreenHeader
           title="Missions"
+          subtitle="Objectives & rewards"
           day={player.day}
           location={getAreaLabel(player.currentCityId, player.currentAreaId)}
           rank={rank.name}
           rankProgress={computeRankProgressPercent(gameState)}
         />
       }
-      bottomNav={<GameNavFooter navigation={navigation} active="Progress" />}
+      bottomNav={<GameNavFooter navigation={navigation} active="Operations" />}
     >
       <ActionMessage message={lastMessage} />
 
       <EventBanner
-        label="Objectives"
+        label="How it works"
         message="Progress tracks automatically. Claim rewards once complete."
         tone="green"
       />
@@ -88,44 +97,43 @@ export function MissionsScreen({ navigation }: Props) {
             onPress={() => setTab(t)}
           >
             <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t.toUpperCase()}
+              {TAB_LABELS[t]}
             </Text>
           </Pressable>
         ))}
       </View>
 
       {tab === 'story' ? (
-        <SectionCard title="Story Arc" subtitle={arcLabel}>
+        <SectionCard title="Story Arc" subtitle={arcLabel} tone="purple">
           {storyComplete ? (
-            <>
-              <Text style={styles.empty}>Empire Builder arc complete.</Text>
-              <Text style={styles.subNote}>
-                Continue growing your empire — rank up, expand cities, and stack businesses.
-              </Text>
-              <Text style={styles.subNote}>More story content coming.</Text>
-            </>
+            <EmptyState
+              icon="👑"
+              title="Empire Builder complete"
+              message="Continue growing your empire — rank up, expand cities, and stack businesses."
+            />
           ) : storyMission ? (
             <MissionCard
               title={MISSION_MAP[storyMission.id]?.title ?? storyMission.id}
               description={MISSION_MAP[storyMission.id]?.description ?? ''}
               progress={getMissionProgressWidgetText(gameState, storyMission)}
               reward={formatMissionRewardSummary(MISSION_MAP[storyMission.id]?.rewards ?? {})}
+              chainLabel={arcLabel}
             />
           ) : (
-            <Text style={styles.empty}>No active story mission. Arc may be complete.</Text>
+            <EmptyState title="No active story mission" message="Your arc may be complete." />
           )}
           {storyChainMissions.length > 1 ? (
             <Text style={styles.subNote}>
-              {storyChainMissions.length} objective(s) in this arc.
+              {storyChainMissions.length} objectives in this arc.
             </Text>
           ) : null}
         </SectionCard>
       ) : null}
 
       {tab === 'active' ? (
-        <SectionCard title="Active" subtitle={`${(activeMissions ?? []).length} mission(s)`}>
+        <SectionCard title="Active Missions" subtitle={`${(activeMissions ?? []).length} in progress`}>
           {(activeMissions ?? []).length === 0 ? (
-            <Text style={styles.empty}>No active missions.</Text>
+            <EmptyState title="No active missions" message="Check story or daily tabs." />
           ) : (
             (activeMissions ?? []).map((m) => {
               const def = MISSION_MAP[m.id];
@@ -137,6 +145,7 @@ export function MissionsScreen({ navigation }: Props) {
                   description={def.description}
                   progress={getMissionProgressWidgetText(gameState, m)}
                   reward={formatMissionRewardSummary(def.rewards)}
+                  chainLabel={def.chainId ? STORY_ARC_LABELS[def.chainId as StoryArcId] : undefined}
                 />
               );
             })
@@ -148,33 +157,31 @@ export function MissionsScreen({ navigation }: Props) {
       ) : null}
 
       {tab === 'daily' ? (
-        <SectionCard title="Daily Objectives" subtitle={`Day ${player.day}`}>
+        <SectionCard title="Daily Objectives" subtitle={`Day ${player.day}`} tone="amber">
           {todaysDaily.length === 0 ? (
-            <Text style={styles.empty}>Daily objectives refresh when the day advances.</Text>
+            <EmptyState
+              title="No dailies yet"
+              message="Daily objectives refresh when the day advances."
+            />
           ) : (
             todaysDaily.map((obj) => {
               const done = obj.progress >= obj.target;
               const claimKey = `daily:${obj.id}`;
               const claiming = isClaimingReward(claimKey);
+              const pct = obj.target > 0 ? (obj.progress / obj.target) * 100 : 0;
               return (
-                <View key={obj.id} style={styles.card}>
-                  <Text style={styles.name}>{obj.title}</Text>
-                  <Text style={styles.desc}>{obj.description}</Text>
-                  <Text style={styles.meta}>
-                    Progress {getDailyProgressLabel(obj)} · {formatMissionRewardSummary(obj.rewards)}
-                  </Text>
-                  {obj.claimed ? (
-                    <Text style={styles.claimed}>CLAIMED</Text>
-                  ) : done ? (
-                    <GameButton
-                      label={claiming ? 'CLAIMING…' : 'CLAIM REWARD'}
-                      size="sm"
-                      onPress={() => claimDailyObjective(obj.id)}
-                      disabled={claiming}
-                      style={styles.btn}
-                    />
-                  ) : null}
-                </View>
+                <MissionCard
+                  key={obj.id}
+                  title={obj.title}
+                  description={obj.description}
+                  progress={getDailyProgressLabel(obj)}
+                  progressPct={pct}
+                  reward={formatMissionRewardSummary(obj.rewards)}
+                  claimed={obj.claimed}
+                  canClaim={done && !obj.claimed}
+                  claiming={claiming}
+                  onClaim={() => claimDailyObjective(obj.id)}
+                />
               );
             })
           )}
@@ -183,9 +190,9 @@ export function MissionsScreen({ navigation }: Props) {
 
       {tab === 'completed' ? (
         <>
-          <SectionCard title="Claim Rewards" subtitle={`${claimableCompleted.length} pending`}>
+          <SectionCard title="Claim Rewards" subtitle={`${claimableCompleted.length} pending`} tone="green">
             {claimableCompleted.length === 0 ? (
-              <Text style={styles.empty}>Nothing to claim.</Text>
+              <EmptyState title="Nothing to claim" message="Complete missions to earn rewards." />
             ) : (
               claimableCompleted.map((m) => {
                 const def = MISSION_MAP[m.id];
@@ -193,17 +200,14 @@ export function MissionsScreen({ navigation }: Props) {
                 const claimKey = `mission:${m.id}`;
                 const claiming = isClaimingReward(claimKey);
                 return (
-                  <View key={m.id} style={styles.card}>
-                    <Text style={styles.name}>{def.title}</Text>
-                    <Text style={styles.meta}>{formatMissionRewardSummary(def.rewards)}</Text>
-                    <GameButton
-                      label={claiming ? 'CLAIMING…' : 'CLAIM'}
-                      size="sm"
-                      onPress={() => claimMissionReward(m.id)}
-                      disabled={claiming}
-                      style={styles.btn}
-                    />
-                  </View>
+                  <MissionCard
+                    key={m.id}
+                    title={def.title}
+                    reward={formatMissionRewardSummary(def.rewards)}
+                    canClaim
+                    claiming={claiming}
+                    onClaim={() => claimMissionReward(m.id)}
+                  />
                 );
               })
             )}
@@ -225,27 +229,6 @@ export function MissionsScreen({ navigation }: Props) {
   );
 }
 
-function MissionCard({
-  title,
-  description,
-  progress,
-  reward,
-}: {
-  title: string;
-  description: string;
-  progress: string;
-  reward: string;
-}) {
-  return (
-    <View style={styles.card}>
-      <Text style={styles.name}>{title}</Text>
-      <Text style={styles.desc}>{description}</Text>
-      {progress ? <Text style={styles.meta}>Progress: {progress}</Text> : null}
-      <Text style={styles.meta}>Reward: {reward}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   tabs: {
     flexDirection: 'row',
@@ -254,45 +237,33 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: palette.border,
     alignItems: 'center',
+    backgroundColor: palette.bgCard,
   },
   tabActive: {
     borderColor: palette.neon,
     backgroundColor: palette.neonSoft,
   },
   tabText: {
-    color: palette.textMuted,
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    color: palette.textSecondary,
+    fontSize: typography.caption,
+    fontWeight: '700',
   },
   tabTextActive: {
     color: palette.neon,
   },
-  empty: { color: palette.textMuted, fontSize: 12 },
-  subNote: { color: palette.textMuted, fontSize: 10, marginTop: spacing.sm },
-  card: {
-    backgroundColor: palette.bgElevated,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
+  subNote: {
+    color: palette.textSecondary,
+    fontSize: typography.caption,
+    marginTop: spacing.sm,
   },
-  name: {
-    color: palette.text,
-    fontFamily: fonts.display,
-    fontSize: 14,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+  historyLine: {
+    color: palette.textSecondary,
+    fontSize: typography.caption,
+    marginBottom: 6,
   },
-  desc: { color: palette.textSecondary, fontSize: 11, marginTop: 4, lineHeight: 15 },
-  meta: { color: palette.textMuted, fontSize: 10, marginTop: 4 },
-  claimed: { color: palette.neon, fontSize: 10, fontWeight: '800', marginTop: 6 },
-  historyLine: { color: palette.textSecondary, fontSize: 11, marginBottom: 4 },
-  btn: { marginTop: spacing.sm, marginBottom: 0 },
 });

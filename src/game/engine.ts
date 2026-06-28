@@ -35,14 +35,21 @@ import {
 } from './territory';
 import { refreshSupplierOffers } from './supplierSystem';
 import { generateContractOffers, tickContractsOnDayAdvance } from './contractSystem';
-import { tickCrewPayroll, refreshCrewRecruits, applyCrewEncounterRisk } from './crewSystem';
+import { tickCrewEmpire, refreshCrewRecruits, applyCrewEncounterRisk } from './crewSystem';
 import { tickSafehouseUpkeep, getSafehouseHeatDecayBonus } from './safehouseSystem';
+import { rollPropertyDailyEvents } from './propertyManagementSystem';
 import { tickBusinessesOnDayAdvance } from './businessSystem';
 import { trackMissionEvent, tickMissionsOnDayAdvance, initializeMissionState, syncMissionState } from './missionSystem';
+import {
+  initializeIntelState,
+  tryTriggerIntelReveal,
+  tickIntelOnDayAdvance,
+} from './intelSystem';
 import { purgeExpiredStoreBoosts } from './storeInventory';
 import { applyFirstSessionMarketBoost, createDefaultTutorial } from './tutorialSystem';
 import type { MissionEvent } from '../types/missions';
-import { addDirtyMoney, normalizeMoneyFields } from './money';
+import { appendFinanceLog } from './financeSystem';
+import { addDirtyMoney, normalizeMoneyFields, spendMoney } from './money';
 import { getAccountantDebtReduction, getDealerSaleBonus, getFixerHeatBonus, getFixerBribeBonus } from './crewBonuses';
 import { rollRandomEvent } from '../data/events';
 import { rollEncounter, isEncounterChoice } from './encounterSystem';
@@ -71,19 +78,28 @@ import {
 import { BASE_INVENTORY_CAPACITY } from '../data/progression';
 import { getInventoryUsed, getNetWorth } from './economy';
 import { getInventoryLoadFactor } from './combat';
+import { DAILY_DEBT_INTEREST } from './debtConstants';
+import {
+  AREA_MOVES_BEFORE_DAY_ADVANCE,
+  logDebtInterest,
+  payDebtTowardLoan,
+  recordAreaMove,
+  resetAreaMovesOnDayAdvance,
+  createDefaultFinanceFields,
+} from './financeSystem';
 
 export { getNetWorth, getInventoryUsed };
 export { resolveEventChoice };
 
 const STARTING_CASH = 2800;
 const STARTING_DEBT = 4500;
-const DAILY_DEBT_INTEREST = 0.025;
 const HEAT_DECAY = 3;
 const MAX_DEBT = 50000;
 const BORROW_AMOUNTS = [1000, 2500, 5000] as const;
 const PRICE_HISTORY_LENGTH = 6;
 
-export { BORROW_AMOUNTS, DAILY_DEBT_INTEREST };
+export { BORROW_AMOUNTS };
+export { DAILY_DEBT_INTEREST } from './debtConstants';
 
 function generateAreaPrices(
   cityId: string,
@@ -234,8 +250,10 @@ export function createInitialGameState(): GameState {
       `Mission: Make your first sale, then claim the reward on the Hub.`,
     ],
     tutorial: createDefaultTutorial(false),
+    ...createDefaultFinanceFields(1),
   };
   let stateWithMissions = initializeMissionState(state);
+  stateWithMissions = initializeIntelState(stateWithMissions);
   stateWithMissions = applyFirstSessionMarketBoost(stateWithMissions);
   return syncProgression(generateContractOffers(stateWithMissions));
 }
@@ -280,8 +298,9 @@ function refreshDealsAtLocation(state: GameState): GameState {
 }
 
 function tickEmpireBeforeDayAdvance(state: GameState): GameState {
-  let updated = tickCrewPayroll(state);
+  let updated = tickCrewEmpire(state);
   updated = tickSafehouseUpkeep(updated);
+  updated = rollPropertyDailyEvents(updated);
   updated = tickBusinessesOnDayAdvance(updated);
   return updated;
 }
@@ -304,12 +323,12 @@ function advanceDayState(
   dayMessage: string,
   random: () => number = Math.random
 ): GameState {
-  const interest = Math.floor(state.player.debt * DAILY_DEBT_INTEREST);
+  const debtRate = DAILY_DEBT_INTEREST * (1 - getAccountantDebtReduction(state));
+  const interest = Math.floor(state.player.debt * debtRate);
   const areaKey = getPlayerAreaKey(state.player);
   const extraHeatDecay =
     getExtraHeatDecayAtLocation(state.progression, areaKey) +
     getSafehouseHeatDecayBonus(state);
-  const debtRate = DAILY_DEBT_INTEREST * (1 - getAccountantDebtReduction(state));
 
   let updated = tickEmpireBeforeDayAdvance(state);
 
@@ -319,6 +338,9 @@ function advanceDayState(
   };
 
   updated = tickWorldEventsOnDayAdvance(updated, random);
+  if ((updated.activeWorldEvents ?? []).length > 0) {
+    updated = tryTriggerIntelReveal(updated, 'world_event', random);
+  }
   const marketPrices = generateMarketPrices(updated.activeWorldEvents, random);
   updated = {
     ...updated,
@@ -339,8 +361,12 @@ function advanceDayState(
   updated = { ...updated, player: checkGameOver(updated.player) };
   updated = tickContractsOnDayAdvance(updated);
   updated = tickMissionsOnDayAdvance(updated);
+  updated = tickIntelOnDayAdvance(updated);
   updated = purgeExpiredStoreBoosts(updated);
-  return updated;
+  if (interest > 0) {
+    updated = logDebtInterest(updated, interest);
+  }
+  return resetAreaMovesOnDayAdvance(updated);
 }
 
 function heatFromTrade(
@@ -553,13 +579,20 @@ export function travelToArea(
     );
   }
 
+  const afterTravelSpend = spendMoney(state.player, area.travelCost, true);
+  if (!afterTravelSpend) {
+    return withMessage(
+      state,
+      `Cannot travel — need $${area.travelCost}, have $${state.player.cash}.`
+    );
+  }
+
   const travelHeatMult = getCombinedHeatMultiplier(state, areaKey);
 
   let updated: GameState = {
     ...state,
     player: {
-      ...state.player,
-      cash: state.player.cash - area.travelCost,
+      ...afterTravelSpend,
       currentAreaId: areaId,
       heat: clamp(
         state.player.heat +
@@ -574,11 +607,8 @@ export function travelToArea(
 
   const owner = getAreaOwnership(updated, state.player.currentCityId, areaId);
   const flavor = rollAreaFlavorMessage(updated, area.name, owner);
-  updated = withMessage(
-    updated,
-    flavor ??
-      `Moved to ${area.name} (-$${area.travelCost}). Day unchanged.`
-  );
+  const baseMsg =
+    flavor ?? `Moved to ${area.name} (-$${area.travelCost}).`;
 
   updated = {
     ...updated,
@@ -591,7 +621,28 @@ export function travelToArea(
   }
 
   updated = refreshDealsAtLocation(updated);
-  return finalizeAction(updated);
+  updated = tryTriggerIntelReveal(updated, 'travel_area');
+
+  const { state: afterMove, movesToday, triggersDayAdvance } = recordAreaMove(updated);
+
+  if (triggersDayAdvance) {
+    let advanced = advanceDayState(
+      afterMove,
+      `${baseMsg} Third area move — day advances.`
+    );
+    if (!advanced.player.isGameOver) {
+      advanced = tryRollEncounterOrLegacy(advanced, 'areaTravel', 'day_advance');
+      advanced = applyCrewEncounterRisk(advanced);
+    }
+    return finalizeAction(advanced);
+  }
+
+  return finalizeAction(
+    withMessage(
+      afterMove,
+      `${baseMsg} Area moves today: ${movesToday} / ${AREA_MOVES_BEFORE_DAY_ADVANCE}. 3rd area move advances the day.`
+    )
+  );
 }
 
 /** Move to another city — advances the day. */
@@ -637,13 +688,20 @@ export function travelToCity(
     );
   }
 
+  const afterTravelSpend = spendMoney(state.player, totalCost, true);
+  if (!afterTravelSpend) {
+    return withMessage(
+      state,
+      `Cannot travel to ${city.name} — need $${totalCost}, have $${state.player.cash}.`
+    );
+  }
+
   const travelHeatMult = getCombinedHeatMultiplier(state, areaKey);
 
   let updated: GameState = {
     ...state,
     player: {
-      ...state.player,
-      cash: state.player.cash - totalCost,
+      ...afterTravelSpend,
       currentCityId: cityId,
       currentAreaId: destAreaId,
       heat: clamp(
@@ -676,6 +734,7 @@ export function travelToCity(
   }
 
   updated = refreshDealsAtLocation(updated);
+  updated = tryTriggerIntelReveal(updated, 'travel_city');
   return finalizeAction(updated, { kind: 'travel_city', cityId });
 }
 export function stayHere(state: GameState): GameState {
@@ -684,10 +743,11 @@ export function stayHere(state: GameState): GameState {
   }
 
   const { currentCityId, currentAreaId } = state.player;
-  let updated = refreshAreaMarket(state, currentCityId, currentAreaId);
-  updated = withMessage(
-    updated,
-    `Staying put in ${AREA_MAP[currentAreaId]?.name ?? 'area'}. Local prices refreshed. Day unchanged.`
+  const areaName = AREA_MAP[currentAreaId]?.name ?? 'area';
+
+  let updated = advanceDayState(
+    state,
+    `Stayed in ${areaName}. Day advances — interest, payroll, and upkeep apply.`
   );
 
   if (!updated.player.isGameOver) {
@@ -696,6 +756,7 @@ export function stayHere(state: GameState): GameState {
   }
 
   updated = refreshDealsAtLocation(updated);
+  updated = tryTriggerIntelReveal(updated, 'stay');
   return finalizeAction(updated);
 }
 
@@ -705,37 +766,7 @@ export function travelToLocation(state: GameState, locationId: string): GameStat
 }
 
 export function payDebt(state: GameState, amount: number): GameState {
-  if (amount <= 0 || state.player.isGameOver) {
-    return state;
-  }
-
-  if (state.player.debt <= 0) {
-    return withMessage(state, 'You have no debt. Clean slate.');
-  }
-
-  const payment = Math.min(amount, state.player.cash, state.player.debt);
-  if (payment <= 0) {
-    return withMessage(state, 'No cash available to pay debt.');
-  }
-
-  const remaining = state.player.debt - payment;
-  const repGain = payment >= 1000 ? 3 : payment >= 500 ? 2 : 1;
-
-  return finalizeAction(
-    withMessage(
-      {
-        ...state,
-        player: {
-          ...state.player,
-          cash: state.player.cash - payment,
-          debt: remaining,
-          reputation: clamp(state.player.reputation + repGain, 0, 100),
-        },
-      },
-      `Paid $${payment} toward debt. Remaining: $${remaining}. Rep +${repGain}.`
-    ),
-    { kind: 'pay_debt', amount: payment }
-  );
+  return payDebtTowardLoan(state, amount);
 }
 
 export function borrowMoney(state: GameState, amount: number): GameState {
@@ -756,19 +787,30 @@ export function borrowMoney(state: GameState, amount: number): GameState {
 
   const repPenalty = amount >= 5000 ? 2 : 1;
 
-  return withMessage(
+  let player = addDirtyMoney(state.player, amount);
+  player = normalizeMoneyFields({
+    ...player,
+    debt: state.player.debt + amount,
+    heat: clamp(state.player.heat + 8, 0, 100),
+    reputation: clamp(state.player.reputation - repPenalty, 0, 100),
+  });
+
+  let updated = withMessage(
     {
       ...state,
-      player: {
-        ...state.player,
-        cash: state.player.cash + amount,
-        debt: state.player.debt + amount,
-        heat: clamp(state.player.heat + 8, 0, 100),
-        reputation: clamp(state.player.reputation - repPenalty, 0, 100),
-      },
+      player,
     },
     `Borrowed $${amount}. Debt now $${state.player.debt + amount}. Heat +8. Rep -${repPenalty}.`
   );
+
+  updated = appendFinanceLog(
+    updated,
+    'borrow',
+    amount,
+    `Borrowed $${amount.toLocaleString()} from the loan shark.`
+  );
+
+  return updated;
 }
 
 export function restDay(state: GameState): GameState {
@@ -790,13 +832,20 @@ export function restDay(state: GameState): GameState {
     );
   }
 
+  const afterSpend = spendMoney(state.player, healCost, true);
+  if (!afterSpend) {
+    return withMessage(
+      state,
+      `Cannot rest — need $${healCost} for a safe hideout and supplies.`
+    );
+  }
+
   const healAmount = Math.min(100 - state.player.health, 30);
 
   let updated: GameState = {
     ...state,
     player: {
-      ...state.player,
-      cash: state.player.cash - healCost,
+      ...afterSpend,
       health: clamp(state.player.health + healAmount, 0, 100),
       heat: clamp(state.player.heat - 6, 0, 100),
     },

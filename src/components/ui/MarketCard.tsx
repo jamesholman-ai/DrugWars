@@ -1,287 +1,336 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { memo, useEffect, useRef } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   formatPercentChange,
   formatPriceDelta,
   getMarketTrendTone,
+  getPriceHistoryStats,
   MarketPriceChange,
   trendArrow,
 } from '../../utils/marketPriceDisplay';
 import { formatMoney } from '../../utils/format';
-import { fonts, palette, radius, spacing } from '../../theme/theme';
+import { NeonButton } from '../premium/NeonButton';
+import { Sparkline } from '../premium/Sparkline';
+import { palette, radius, shadows, spacing, typography } from '../../theme/theme';
 
 interface MarketCardProps {
   name: string;
   icon: string;
   price: number;
   priceChange: MarketPriceChange;
+  priceHistory?: number[];
   eventBadge: string | null;
   ownedQty: number;
+  availableQty?: number;
   canBuy: boolean;
   canSell: boolean;
   onBuy: () => void;
   onSell: () => void;
 }
 
-function toneColors(tone: ReturnType<typeof getMarketTrendTone>) {
+function trendStyle(tone: ReturnType<typeof getMarketTrendTone>, isMajor: boolean) {
   switch (tone) {
     case 'rising':
-      return { accent: palette.neon, border: palette.neonDim, bg: palette.neonSoft };
+      return { accent: palette.neon, border: palette.neonDim, bg: palette.neonSoft, glow: isMajor ? shadows.glowGreen : {} };
     case 'falling':
-      return { accent: palette.danger, border: palette.dangerDim, bg: palette.dangerGlow };
+      return { accent: palette.danger, border: palette.dangerDim, bg: palette.dangerGlow, glow: isMajor ? shadows.glowRed : {} };
     case 'major':
-      return { accent: palette.amber, border: palette.amberDim, bg: palette.amberGlow };
-    case 'new':
-    case 'flat':
+      return { accent: palette.gold, border: palette.amberDim, bg: palette.amberGlow, glow: shadows.glowGold };
     default:
-      return { accent: palette.textMuted, border: palette.border, bg: palette.bgElevated };
+      return { accent: palette.textSecondary, border: palette.border, bg: palette.bgElevated, glow: {} };
   }
 }
 
-export function MarketCard({
+function MarketCardInner({
   name,
   icon,
   price,
   priceChange,
+  priceHistory,
   eventBadge,
   ownedQty,
+  availableQty,
   canBuy,
   canSell,
   onBuy,
   onSell,
 }: MarketCardProps) {
   const tone = getMarketTrendTone(priceChange);
-  const colors = toneColors(tone);
+  const colors = trendStyle(tone, priceChange.isMajorSwing);
   const arrow = trendArrow(priceChange.trend, priceChange.hasHistory);
+  const glow = useRef(new Animated.Value(priceChange.isMajorSwing ? 0.6 : 0)).current;
+  const flash = useRef(new Animated.Value(0)).current;
+  const stats = getPriceHistoryStats(price, priceHistory);
+  const sparkValues = priceHistory?.length ? [...priceHistory.slice(-12), price] : [price];
+
+  useEffect(() => {
+    if (priceChange.isMajorSwing) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glow, { toValue: 1, duration: 1200, useNativeDriver: false }),
+          Animated.timing(glow, { toValue: 0.5, duration: 1200, useNativeDriver: false }),
+        ])
+      ).start();
+    }
+  }, [priceChange.isMajorSwing, glow]);
+
+  useEffect(() => {
+    if (!priceChange.hasHistory) return;
+    const flashColor =
+      priceChange.trend === 'up' ? 1 : priceChange.trend === 'down' ? -1 : 0;
+    if (flashColor === 0) return;
+    flash.setValue(flashColor);
+    Animated.timing(flash, { toValue: 0, duration: 480, useNativeDriver: false }).start();
+  }, [price, priceChange.hasHistory, priceChange.trend, flash]);
+
+  const borderColor = glow.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.border, colors.accent],
+  });
+
+  const flashBg = flash.interpolate({
+    inputRange: [-1, 0, 1],
+    outputRange: [palette.dangerGlow, 'transparent', palette.neonSoft],
+  });
 
   return (
-    <View
-      style={[
-        styles.card,
-        priceChange.isMajorSwing && styles.cardMajor,
-        { borderColor: priceChange.isMajorSwing ? palette.amber : palette.border },
-      ]}
+    <Animated.View
+      style={[styles.card, colors.glow, { borderColor, backgroundColor: flashBg }]}
+      accessibilityLabel={`${name} trading at ${formatMoney(price)}`}
     >
-      <View style={styles.iconWrap}>
-        <Text style={styles.icon}>{icon}</Text>
+      <LinearGradient
+        colors={[colors.bg, 'transparent']}
+        style={styles.cardGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={styles.topRow}>
+        <View style={styles.iconWrap}>
+          <Text style={styles.icon}>{icon}</Text>
+        </View>
+        <View style={styles.titleBlock}>
+          <View style={styles.titleRow}>
+            <Text style={styles.name}>{name}</Text>
+            {eventBadge ? (
+              <View style={styles.eventBadge}>
+                <Text style={styles.eventBadgeText}>{eventBadge}</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={[styles.price, { color: colors.accent }]}>{formatMoney(price)}</Text>
+        </View>
+        <View style={[styles.trendBlock, { borderColor: colors.border, backgroundColor: colors.bg }]}>
+          <Text style={[styles.trendArrow, { color: colors.accent }]}>{arrow}</Text>
+          {priceChange.hasHistory && priceChange.delta != null && priceChange.percentChange != null ? (
+            <>
+              <Text style={[styles.delta, { color: colors.accent }]}>
+                {formatPriceDelta(priceChange.delta)}
+              </Text>
+              <Text style={[styles.pct, { color: colors.accent }]}>
+                {formatPercentChange(priceChange.percentChange)}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.newData}>New</Text>
+          )}
+        </View>
       </View>
 
-      <View style={styles.info}>
-        <View style={styles.titleRow}>
-          <Text style={styles.name} numberOfLines={1}>
-            {name}
-          </Text>
-          {eventBadge ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{eventBadge}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.priceRow}>
-          <Text style={[styles.price, { color: colors.accent }]}>{formatMoney(price)}</Text>
-          <View style={[styles.trendChip, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-            <Text style={[styles.trendArrow, { color: colors.accent }]}>{arrow}</Text>
+      {priceChange.hasHistory && priceChange.previousPrice != null ? (
+        <View style={styles.analyticsRow}>
+          <Sparkline values={sparkValues} color={colors.accent} />
+          <View style={styles.rangeBlock}>
+            {stats ? (
+              <>
+                <Text style={styles.rangeLine}>H {formatMoney(stats.high)}</Text>
+                <Text style={styles.rangeLine}>L {formatMoney(stats.low)}</Text>
+                <Text style={styles.confidence}>Conf. {stats.confidence}</Text>
+              </>
+            ) : (
+              <Text style={styles.prevLine}>Previous {formatMoney(priceChange.previousPrice)}</Text>
+            )}
           </View>
         </View>
+      ) : null}
 
-        {priceChange.hasHistory &&
-        priceChange.previousPrice != null &&
-        priceChange.delta != null &&
-        priceChange.percentChange != null ? (
-          <Text style={styles.changeLine}>
-            <Text style={styles.changeMuted}>was {formatMoney(priceChange.previousPrice)} · </Text>
-            <Text style={[styles.changeValue, { color: colors.accent }]}>
-              {formatPriceDelta(priceChange.delta)} ({formatPercentChange(priceChange.percentChange)})
-            </Text>
-          </Text>
-        ) : (
-          <Text style={styles.newData}>New market data</Text>
-        )}
-      </View>
-
-      <View style={styles.sideCol}>
-        <Text style={styles.qtyLabel}>YOU</Text>
-        <Text style={[styles.qtyValue, ownedQty > 0 && styles.ownedHighlight]}>{ownedQty}</Text>
+      <View style={styles.qtyRow}>
+        <View style={styles.qtyChip}>
+          <Text style={styles.qtyLabel}>Owned</Text>
+          <Text style={[styles.qtyValue, ownedQty > 0 && styles.qtyOwned]}>{ownedQty}</Text>
+        </View>
+        {availableQty != null ? (
+          <View style={styles.qtyChip}>
+            <Text style={styles.qtyLabel}>Available</Text>
+            <Text style={styles.qtyValue}>{availableQty}</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.actions}>
-        <Pressable
-          style={[styles.btn, styles.buyBtn, !canBuy && styles.btnDisabled]}
-          onPress={onBuy}
-          disabled={!canBuy}
-        >
-          <Text style={[styles.btnText, styles.buyText]}>BUY</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.btn, styles.sellBtn, !canSell && styles.btnDisabled]}
-          onPress={onSell}
-          disabled={!canSell}
-        >
-          <Text style={[styles.btnText, styles.sellText]}>SELL</Text>
-        </Pressable>
+        <View style={styles.actionBtn}>
+          <NeonButton label="Buy" size="sm" disabled={!canBuy} onPress={onBuy} />
+        </View>
+        <View style={styles.actionBtn}>
+          <NeonButton label="Sell" variant="danger" size="sm" disabled={!canSell} onPress={onSell} />
+        </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
+export const MarketCard = memo(MarketCardInner);
+
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
     backgroundColor: palette.bgCard,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: palette.border,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    marginBottom: spacing.sm,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    overflow: 'hidden',
+    ...shadows.card,
   },
-  cardMajor: {
-    borderWidth: 2,
-    shadowColor: palette.amber,
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
+  cardGradient: {
+    ...StyleSheet.absoluteFill,
+    opacity: 0.5,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
   },
   iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
-    backgroundColor: palette.bgElevated,
+    width: 48,
+    height: 48,
+    borderRadius: radius.lg,
+    backgroundColor: palette.bgCardHover,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: palette.borderBright,
     alignItems: 'center',
     justifyContent: 'center',
   },
   icon: {
-    fontSize: 16,
+    fontSize: 22,
   },
-  info: {
+  titleBlock: {
     flex: 1,
     minWidth: 0,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
     flexWrap: 'wrap',
+    gap: spacing.xs,
   },
   name: {
     color: palette.text,
-    fontFamily: fonts.body,
-    fontSize: 12,
-    fontWeight: '700',
-    flexShrink: 1,
+    fontSize: typography.subtitle,
+    fontWeight: '800',
   },
-  badge: {
+  eventBadge: {
     backgroundColor: palette.amberGlow,
     borderWidth: 1,
     borderColor: palette.amberDim,
-    borderRadius: radius.sm,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
   },
-  badgeText: {
-    color: palette.amber,
-    fontFamily: fonts.body,
-    fontSize: 7,
+  eventBadgeText: {
+    color: palette.gold,
+    fontSize: typography.caption,
     fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: 3,
   },
   price: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: typography.hero,
+    fontWeight: '900',
+    marginTop: 4,
+    letterSpacing: 0.5,
   },
-  trendChip: {
+  trendBlock: {
     borderWidth: 1,
-    borderRadius: radius.sm,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    borderRadius: radius.lg,
+    padding: spacing.sm,
+    alignItems: 'center',
+    minWidth: 72,
   },
   trendArrow: {
-    fontSize: 10,
+    fontSize: 28,
+    fontWeight: '900',
+    lineHeight: 32,
+  },
+  delta: {
+    fontSize: typography.caption,
     fontWeight: '800',
+    marginTop: 2,
   },
-  changeLine: {
-    marginTop: 3,
-    fontFamily: fonts.body,
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  changeMuted: {
-    color: palette.textMuted,
-  },
-  changeValue: {
+  pct: {
+    fontSize: typography.caption,
     fontWeight: '700',
   },
   newData: {
-    color: palette.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 10,
-    fontStyle: 'italic',
-    marginTop: 3,
+    color: palette.textSecondary,
+    fontSize: typography.caption,
+    marginTop: 4,
   },
-  sideCol: {
+  prevLine: {
+    color: palette.textSecondary,
+    fontSize: typography.caption,
+  },
+  analyticsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 32,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  rangeBlock: {
+    flex: 1,
+  },
+  rangeLine: {
+    color: palette.textSecondary,
+    fontSize: typography.caption,
+    fontWeight: '600',
+  },
+  confidence: {
+    color: palette.textMuted,
+    fontSize: typography.tiny,
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  qtyRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  qtyChip: {
+    flex: 1,
+    backgroundColor: palette.bgCardHover,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
+    padding: spacing.sm,
+    alignItems: 'center',
   },
   qtyLabel: {
-    color: palette.textMuted,
-    fontSize: 7,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    color: palette.textSecondary,
+    fontSize: typography.caption,
+    fontWeight: '600',
   },
   qtyValue: {
-    color: palette.textSecondary,
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 1,
+    color: palette.text,
+    fontSize: typography.subtitle,
+    fontWeight: '800',
+    marginTop: 2,
   },
-  ownedHighlight: {
+  qtyOwned: {
     color: palette.neon,
   },
   actions: {
-    gap: 4,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
-  btn: {
-    borderRadius: radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    minWidth: 44,
-    alignItems: 'center',
-  },
-  buyBtn: {
-    backgroundColor: palette.neonSoft,
-    borderWidth: 1,
-    borderColor: palette.neonDim,
-  },
-  sellBtn: {
-    backgroundColor: palette.dangerGlow,
-    borderWidth: 1,
-    borderColor: palette.danger,
-  },
-  btnDisabled: {
-    opacity: 0.35,
-  },
-  btnText: {
-    fontFamily: fonts.body,
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  buyText: {
-    color: palette.neon,
-  },
-  sellText: {
-    color: palette.danger,
+  actionBtn: {
+    flex: 1,
   },
 });

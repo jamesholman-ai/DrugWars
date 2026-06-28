@@ -6,12 +6,15 @@ export const APP_TAGLINE = 'Offline street-trading strategy. No account required
 
 export const STUDIO_NAME = 'AIventure Studios';
 export const STUDIO_DISPLAY_NAME = 'AI Venture Studios';
+export const COPYRIGHT_YEAR = '2026';
+export const DEVELOPER_LINE = `Developed by ${STUDIO_NAME}`;
+export const COPYRIGHT_LINE = `© ${COPYRIGHT_YEAR} ${STUDIO_NAME}. All rights reserved.`;
 export const STUDIO_WEBSITE = 'https://www.aiventure-studios.com';
 
 export const BUNDLE_ID = 'com.aiventurestudios.drugwarsreloaded';
 export const PRIVACY_POLICY_URL =
   'https://www.aiventure-studios.com/drugwars-reloaded/privacy';
-export const SUPPORT_EMAIL = 'support@aiventure-studios.com';
+export const SUPPORT_EMAIL = 'contact@aiventure-studios.com';
 export const PRIVACY_CONTACT_EMAIL = 'contact@aiventure-studios.com';
 
 export const ABOUT_PRIVACY_BULLETS = [

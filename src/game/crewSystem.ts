@@ -21,6 +21,10 @@ import { trackMissionEvent } from './missionSystem';
 import { clamp, randomInt } from '../utils/random';
 import { getStoreInventory, withStoreInventory } from './storeInventory';
 import { getDailyPayroll } from './crewBonuses';
+import { createDefaultHiredCrewFields, normalizeHiredCrewMember } from './empireDefaults';
+import { ACTION_FEEDBACK } from './empireFlavorText';
+import { tickCrewManagement, releaseCrewEmpireAssignments } from './crewManagementSystem';
+import { appendFinanceLog } from './financeSystem';
 
 const MAX_HISTORY = 30;
 
@@ -91,7 +95,7 @@ export function hireCrewMember(state: GameState, recruitId: string): GameState {
     );
   }
 
-  const member: HiredCrewMember = {
+  const member = createDefaultHiredCrewFields({
     id: `crew_${state.player.day}_${offer.templateId}_${Math.random().toString(36).slice(2, 6)}`,
     templateId: offer.templateId,
     name: offer.name,
@@ -107,7 +111,7 @@ export function hireCrewMember(state: GameState, recruitId: string): GameState {
     status: 'hired',
     daysUnpaid: 0,
     hiredDay: state.player.day,
-  };
+  });
 
   const history: CrewHistoryEntry[] = [
     ...(state.crewHistory ?? []),
@@ -124,7 +128,7 @@ export function hireCrewMember(state: GameState, recruitId: string): GameState {
           availableCrew: (state.availableCrew ?? []).filter((o) => o.id !== recruitId),
           crewHistory: history,
         },
-        `Hired ${offer.name} (${offer.role}) for $${offer.hireCost}. Salary $${offer.salaryPerDay}/day.`
+        `${ACTION_FEEDBACK.crewHired(offer.name)} Salary $${offer.salaryPerDay}/day.`
       ),
       { kind: 'hire_crew' }
     )
@@ -144,13 +148,16 @@ export function fireCrewMember(state: GameState, crewId: string): GameState {
 
   return applyProgressionAfterAction(
     withMessage(
-      {
-        ...state,
-        hiredCrew: (state.hiredCrew ?? []).map((c) =>
-          c.id === crewId ? { ...c, status: 'betrayed' as const } : c
-        ),
-        crewHistory: history,
-      },
+      releaseCrewEmpireAssignments(
+        {
+          ...state,
+          hiredCrew: (state.hiredCrew ?? []).map((c) =>
+            c.id === crewId ? { ...c, status: 'betrayed' as const } : c
+          ),
+          crewHistory: history,
+        },
+        crewId
+      ),
       `Cut ${member.name} loose. They will not forget.`
     )
   );
@@ -183,6 +190,12 @@ export function tickCrewPayroll(state: GameState): GameState {
         ...(state.hiredCrew ?? []).filter((c) => c.status !== 'hired'),
       ],
     };
+    updated = appendFinanceLog(
+      updated,
+      'store_effect',
+      payroll,
+      `Crew payroll covered by store credit (${storeInv.payrollCredits - 1} day(s) left).`
+    );
     return withMessage(
       updated,
       `Crew payroll covered by store credit (${storeInv.payrollCredits - 1} day(s) left).`
@@ -205,6 +218,12 @@ export function tickCrewPayroll(state: GameState): GameState {
       ],
     };
     messages.push(`Crew payroll -$${payroll} (${hired.length} members).`);
+    updated = appendFinanceLog(
+      updated,
+      'payroll_paid',
+      payroll,
+      `Crew payroll −$${payroll.toLocaleString()} (${hired.length} members).`
+    );
   } else {
     const paid = cash;
     cash = 0;
@@ -250,6 +269,12 @@ export function tickCrewPayroll(state: GameState): GameState {
   }
 
   return messages.length > 1 ? withMessages(updated, messages) : withMessage(updated, messages[0] ?? '');
+}
+
+export function tickCrewEmpire(state: GameState): GameState {
+  let updated = tickCrewPayroll(state);
+  updated = tickCrewManagement(updated);
+  return updated;
 }
 
 /** Small chance crew gets hurt after encounters. */
@@ -323,7 +348,7 @@ export function migrateHiredCrew(raw: unknown): HiredCrewMember[] {
   for (const entry of raw) {
     if (typeof entry !== 'object' || entry === null) continue;
     const e = entry as Record<string, unknown>;
-    result.push({
+    result.push(normalizeHiredCrewMember({
       id: typeof e.id === 'string' ? e.id : `crew_migrated_${result.length}`,
       templateId: typeof e.templateId === 'string' ? e.templateId : 'unknown',
       name: typeof e.name === 'string' ? e.name : 'Unknown',
@@ -341,7 +366,15 @@ export function migrateHiredCrew(raw: unknown): HiredCrewMember[] {
         : 'hired',
       daysUnpaid: typeof e.daysUnpaid === 'number' ? e.daysUnpaid : 0,
       hiredDay: typeof e.hiredDay === 'number' ? e.hiredDay : 1,
-    });
+      morale: typeof e.morale === 'number' ? e.morale : undefined,
+      stress: typeof e.stress === 'number' ? e.stress : undefined,
+      specialty: typeof e.specialty === 'string' ? e.specialty : undefined,
+      riskProfile: typeof e.riskProfile === 'string' ? (e.riskProfile as HiredCrewMember['riskProfile']) : undefined,
+      currentAssignment: typeof e.currentAssignment === 'string' ? (e.currentAssignment as HiredCrewMember['currentAssignment']) : undefined,
+      relationshipLevel: typeof e.relationshipLevel === 'number' ? e.relationshipLevel : undefined,
+      recentEvents: Array.isArray(e.recentEvents) ? e.recentEvents : undefined,
+      personalGoal: typeof e.personalGoal === 'string' ? e.personalGoal : undefined,
+    }));
   }
   return result;
 }

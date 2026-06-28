@@ -1,4 +1,5 @@
 import type { RankId } from './progression';
+import type { BusinessUpgradeLevels, EmpireEventEntry } from './empire';
 
 export type BusinessType =
   | 'pawn_shop'
@@ -36,6 +37,13 @@ export interface OwnedBusiness {
   purchasedDay: number;
   condition: number;
   upkeepMissedDays: number;
+  /** 0–100 local front reputation. */
+  reputation?: number;
+  /** 0–100 scrutiny on this front. */
+  heat?: number;
+  assignedCrewId?: string | null;
+  upgradeLevels?: BusinessUpgradeLevels;
+  recentEvents?: EmpireEventEntry[];
 }
 
 export interface BusinessHistoryEntry {

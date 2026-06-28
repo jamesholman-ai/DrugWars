@@ -15,6 +15,7 @@ import { getAreasForCity } from '../data/locations';
 import { isCityUnlocked } from './progression';
 import { withMessage, withMessages } from './messages';
 import { applyProgressionAfterAction, addLifetimeProfit } from './progression';
+import { tryTriggerIntelReveal } from './intelSystem';
 import { getDealerContractBonus } from './crewBonuses';
 import { addDirtyMoney } from './money';
 import { trackMissionEvent } from './missionSystem';
@@ -197,6 +198,8 @@ export function fulfillContract(state: GameState, contractId: string): GameState
   updated = addLifetimeProfit(updated, finalPayout);
 
   const bonusNote = finalPayout > contract.payout ? ` (Dealer crew +$${finalPayout - contract.payout})` : '';
+
+  updated = tryTriggerIntelReveal(updated, 'contract');
 
   return applyProgressionAfterAction(
     trackMissionEvent(

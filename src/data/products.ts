@@ -120,7 +120,7 @@ export const PRODUCTS: ProductDefinition[] = [
     'small',
     'Intel Pack — 3 Tips',
     '$0.99',
-    ['3 intel tips', 'Market spikes, shortages, supplier & contract leads', 'Stackable'],
+    ['3 reveal tokens', 'Reveal hidden market & deal leads', 'Stackable'],
     { intelTips: 3 }
   ),
   product(
@@ -129,7 +129,7 @@ export const PRODUCTS: ProductDefinition[] = [
     'medium',
     'Intel Pack — 10 Tips',
     '$2.49',
-    ['10 intel tips', 'Reveal opportunities across your run', 'Stackable'],
+    ['10 reveal tokens', 'Reveal hidden opportunities across your run', 'Stackable'],
     { intelTips: 10 },
     { bestValue: true }
   ),
@@ -139,7 +139,7 @@ export const PRODUCTS: ProductDefinition[] = [
     'large',
     'Intel Pack — 25 Tips',
     '$4.99',
-    ['25 intel tips', 'Maximum fixed intel bundle', 'Stackable'],
+    ['25 reveal tokens', 'Maximum fixed intel bundle', 'Stackable'],
     { intelTips: 25 },
     { bestValue: true }
   ),

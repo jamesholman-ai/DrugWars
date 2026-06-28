@@ -9,11 +9,13 @@ import { hasEquipment } from './combat';
 import { getExtraHeatDecayAtLocation } from './progression';
 import { getFixerHeatBonus, getFixerBribeBonus, getAccountantDebtReduction } from './crewBonuses';
 import { getSafehouseHeatDecayBonus } from './safehouseSystem';
-import { tickCrewPayroll, applyCrewEncounterRisk } from './crewSystem';
+import { tickCrewEmpire, applyCrewEncounterRisk } from './crewSystem';
 import { tickSafehouseUpkeep } from './safehouseSystem';
+import { rollPropertyDailyEvents } from './propertyManagementSystem';
 import { tickBusinessesOnDayAdvance } from './businessSystem';
 import { tickMissionsOnDayAdvance } from './missionSystem';
 import { spendMoney } from './money';
+import { appendFinanceLog, logDebtInterest, resetAreaMovesOnDayAdvance } from './financeSystem';
 import { getPlayerAreaKey } from '../data/locations';
 import { generateMarketPrices, DAILY_DEBT_INTEREST } from './engine';
 import { tickWorldEventsOnDayAdvance } from './worldEvents';
@@ -57,8 +59,9 @@ function advanceDayForHeatAction(
   state: GameState,
   message: string
 ): GameState {
-  let pre = tickCrewPayroll(state);
+  let pre = tickCrewEmpire(state);
   pre = tickSafehouseUpkeep(pre);
+  pre = rollPropertyDailyEvents(pre);
   pre = tickBusinessesOnDayAdvance(pre);
   pre = tickMissionsOnDayAdvance(pre);
 
@@ -100,6 +103,10 @@ function advanceDayForHeatAction(
   ];
 
   updated = withMessages(updated, messages);
+  if (interest > 0) {
+    updated = logDebtInterest(updated, interest);
+  }
+  updated = resetAreaMovesOnDayAdvance(updated);
   return checkGameOverState(updated);
 }
 
@@ -136,6 +143,12 @@ export function layLow(state: GameState): GameState {
     },
     `Laid low (−$${LAY_LOW_COST}). Heat drops. Day advances.`
   );
+  updated = appendFinanceLog(
+    updated,
+    'bribe_legal',
+    LAY_LOW_COST,
+    `Lay low expense −$${LAY_LOW_COST.toLocaleString()}.`
+  );
 
   updated = applyHeatReduction(updated, 18 + getFixerHeatBonus(updated) + getSafehouseHeatDecayBonus(updated));
   if (!updated.player.isGameOver) {
@@ -162,16 +175,21 @@ export function bribeLocalPolice(state: GameState): GameState {
   const backfire = state.player.heat >= 85 && Math.random() < 0.35;
 
   if (backfire) {
-    let updated = withMessage(
-      {
-        ...state,
-        player: {
-          ...afterSpend,
-          heat: clamp(state.player.heat + 12, 0, 100),
-          federalCaseSeverity: clamp(state.player.federalCaseSeverity + 8, 0, 100),
+    let updated = appendFinanceLog(
+      withMessage(
+        {
+          ...state,
+          player: {
+            ...afterSpend,
+            heat: clamp(state.player.heat + 12, 0, 100),
+            federalCaseSeverity: clamp(state.player.federalCaseSeverity + 8, 0, 100),
+          },
         },
-      },
-      `Bribe backfired! Officer flagged you as corrupt. Heat +12. Lost $${BRIBE_COST}.`
+        `Bribe backfired! Officer flagged you as corrupt. Heat +12. Lost $${BRIBE_COST}.`
+      ),
+      'bribe_legal',
+      BRIBE_COST,
+      `Failed bribe −$${BRIBE_COST.toLocaleString()}.`
     );
     return applyProgressionAfterAction(checkGameOverState(updated));
   }
@@ -193,9 +211,14 @@ export function bribeLocalPolice(state: GameState): GameState {
     14
   );
 
-  updated = withMessage(
-    updated,
-    `Bribed local police (−$${BRIBE_COST}). Heat −14. Eyes off you for now.`
+  updated = appendFinanceLog(
+    withMessage(
+      updated,
+      `Bribed local police (−$${BRIBE_COST}). Heat −14. Eyes off you for now.`
+    ),
+    'bribe_legal',
+    BRIBE_COST,
+    `Police bribe −$${BRIBE_COST.toLocaleString()}.`
   );
   return applyProgressionAfterAction(checkGameOverState(updated));
 }
@@ -229,9 +252,14 @@ export function hireLawyerHeat(state: GameState): GameState {
     updated.player.daysInJail = Math.max(0, updated.player.daysInJail - 2);
   }
 
-  updated = withMessage(
-    updated,
-    `Lawyer engaged (−$${fee}). Federal severity −15. Legal heat cooling.`
+  updated = appendFinanceLog(
+    withMessage(
+      updated,
+      `Lawyer engaged (−$${fee}). Federal severity −15. Legal heat cooling.`
+    ),
+    'bribe_legal',
+    fee,
+    `Lawyer fee −$${fee.toLocaleString()}.`
   );
   return applyProgressionAfterAction(checkGameOverState(updated));
 }
@@ -321,9 +349,14 @@ export function payInformant(state: GameState): GameState {
     },
   };
 
-  updated = withMessage(
-    updated,
-    `Paid informant (−$${INFORMANT_COST}). Police/DEA encounter chance reduced for 3 days.`
+  updated = appendFinanceLog(
+    withMessage(
+      updated,
+      `Paid informant (−$${INFORMANT_COST}). Police/DEA encounter chance reduced for 3 days.`
+    ),
+    'bribe_legal',
+    INFORMANT_COST,
+    `Informant payment −$${INFORMANT_COST.toLocaleString()}.`
   );
   return applyProgressionAfterAction(checkGameOverState(updated));
 }

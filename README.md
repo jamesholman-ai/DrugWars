@@ -60,7 +60,7 @@ src/
 
 1. Install EAS CLI: `npm install -g eas-cli`
 2. Log in: `eas login`
-3. Initialize project: `eas init` (replaces `REPLACE_WITH_EAS_PROJECT_ID` in `app.json` — **pending**)
+3. EAS project linked (`548cd18a-6cad-42d2-b42f-328abad55495` in `app.json`)
 4. Confirm privacy policy is live at https://www.aiventure-studios.com/drugwars-reloaded/privacy
 
 ### EAS build profiles
@@ -68,16 +68,24 @@ src/
 | Profile | Use |
 |---------|-----|
 | `development` | Dev client for local debugging |
-| `preview` | Internal APK/IPA for testers |
-| `production` | Store submission builds |
+| `preview` | Internal **APK** for device QA |
+| `production` | Store submission **AAB** (Android) |
 
-### Android internal test build
+### Android preview APK (device QA)
 
 ```bash
 eas build --platform android --profile preview
 ```
 
-Upload the AAB/APK to Google Play **Internal testing** track.
+Install the APK on a physical device for smoke testing.
+
+### Android production AAB (Play Store)
+
+```bash
+eas build --platform android --profile production
+```
+
+Upload the AAB to Google Play **Internal testing** track.
 
 For production store build:
 
@@ -114,6 +122,89 @@ npx expo prebuild --clean
 npx tsc --noEmit
 npx expo-doctor
 ```
+
+Smoke tests (local):
+
+```bash
+npx ts-node --compiler-options '{"module":"CommonJS"}' src/game/financeSmokeTest.ts
+npx ts-node --compiler-options '{"module":"CommonJS"}' src/game/empireSmokeTest.ts
+npx ts-node --compiler-options '{"module":"CommonJS"}' src/game/empireEdgeCaseTest.ts
+```
+
+## Automated EAS Builds
+
+GitHub Actions runs validation on every pull request and push to `main`. Android preview and production builds are triggered manually from the Actions tab.
+
+### Build types explained
+
+| Artifact | Profile | Use |
+|----------|---------|-----|
+| **Expo Go** | — | **Not used** for this app. Drug Wars Reloaded requires a dev client or standalone build (native modules, dev client, store builds). |
+| **Dev client** | `development` | Local debugging with `expo start --dev-client`. Internal distribution. |
+| **Preview APK** | `preview` | Install on a physical Android device for QA. Not for Play Store. |
+| **Production AAB** | `production` | Google Play upload (Android App Bundle). Required for store release. |
+
+### Create `EXPO_TOKEN` (one-time)
+
+1. Sign in at [expo.dev](https://expo.dev).
+2. Open **Account Settings → Access Tokens**.
+3. Create a token (**Robot** type is recommended for CI).
+4. Grant permissions for **EAS Build** (and **EAS Submit** if you enable submit later).
+5. Copy the token — it is shown only once.
+
+### Add the GitHub secret
+
+1. Open the repo on GitHub → **Settings → Secrets and variables → Actions**.
+2. **New repository secret**
+3. Name: `EXPO_TOKEN`
+4. Value: paste the Expo access token.
+
+Never commit tokens to the repository.
+
+### CI workflows
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `validate.yml` | PR + push to `main` | `tsc`, `expo-doctor`, smoke tests |
+| `eas-preview-android.yml` | Manual | Preview **APK** for device QA |
+| `eas-production-android.yml` | Manual | Production **AAB** for Play Store |
+| `eas-submit-android.yml` | Disabled (docs only) | Play upload when service account is configured |
+
+### Run a preview build manually
+
+**GitHub UI:** Actions → **EAS Preview Android** → **Run workflow**
+
+**GitHub CLI:**
+
+```bash
+gh workflow run eas-preview-android.yml
+```
+
+**Local (same profile):**
+
+```bash
+eas build --platform android --profile preview
+```
+
+### Run a production build manually
+
+**GitHub UI:** Actions → **EAS Production Android** → **Run workflow**
+
+Runs `tsc`, `expo-doctor`, then builds an **AAB** (`eas.json` → `production.android.buildType: app-bundle`).
+
+**GitHub CLI:**
+
+```bash
+gh workflow run eas-production-android.yml
+```
+
+**Local:**
+
+```bash
+eas build --platform android --profile production
+```
+
+Upload the resulting AAB to Google Play **Internal testing** before promoting to production.
 
 ## Tech stack
 

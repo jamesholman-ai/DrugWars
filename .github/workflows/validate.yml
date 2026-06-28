@@ -1,0 +1,61 @@
+# Validates TypeScript, Expo health, and game smoke tests on every PR and push to main.
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Typecheck, Expo Doctor, Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Run financeSmokeTest
+        run: |
+          if [ -f src/game/financeSmokeTest.ts ]; then
+            npx ts-node --compiler-options '{"module":"CommonJS"}' src/game/financeSmokeTest.ts
+          else
+            echo "src/game/financeSmokeTest.ts not found — skipping"
+          fi
+
+      - name: Run empireSmokeTest
+        run: |
+          if [ -f src/game/empireSmokeTest.ts ]; then
+            npx ts-node --compiler-options '{"module":"CommonJS"}' src/game/empireSmokeTest.ts
+          else
+            echo "src/game/empireSmokeTest.ts not found — skipping"
+          fi
+
+      - name: Run empireEdgeCaseTest
+        run: |
+          if [ -f src/game/empireEdgeCaseTest.ts ]; then
+            npx ts-node --compiler-options '{"module":"CommonJS"}' src/game/empireEdgeCaseTest.ts
+          else
+            echo "src/game/empireEdgeCaseTest.ts not found — skipping"
+          fi

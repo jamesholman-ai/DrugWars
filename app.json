@@ -31,12 +31,14 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.aiventurestudios.drugwarsreloaded",
-      "versionCode": 1
+      "versionCode": 1,
+      "userInterfaceStyle": "dark"
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "backgroundColor": "#08080c"
     },
+    "backgroundColor": "#08080c",
     "extra": {
       "eas": {
         "projectId": "548cd18a-6cad-42d2-b42f-328abad55495"

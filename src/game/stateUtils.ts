@@ -17,6 +17,8 @@ import { createDefaultBusinessState } from './businessSystem';
 import { createDefaultMissionState } from './missionSystem';
 import { createDefaultTutorial } from './tutorialSystem';
 import { migrateStoreInventory } from './storeInventory';
+import { createDefaultIntelState, initializeIntelState, migrateIntelFromLegacy } from './intelSystem';
+import { createDefaultFinanceFields, migrateFinanceLog } from './financeSystem';
 
 /** Ensures optional runtime fields exist (guards partial/legacy state). */
 export function normalizeGameState(state: GameState): GameState {
@@ -24,6 +26,7 @@ export function normalizeGameState(state: GameState): GameState {
   const heatDefaults = createDefaultHeatCooldowns();
   const businessDefaults = createDefaultBusinessState();
   const missionDefaults = createDefaultMissionState();
+  const financeDefaults = createDefaultFinanceFields(state.player?.day ?? 1);
 
   const withDefaults: GameState = {
     ...state,
@@ -66,6 +69,10 @@ export function normalizeGameState(state: GameState): GameState {
     currentStoryArc: state.currentStoryArc ?? missionDefaults.currentStoryArc,
     missionProgress: state.missionProgress ?? missionDefaults.missionProgress,
     activePriceTips: state.activePriceTips ?? missionDefaults.activePriceTips,
+    hiddenOpportunities: state.hiddenOpportunities ?? createDefaultIntelState().hiddenOpportunities,
+    activeIntel: state.activeIntel ?? createDefaultIntelState().activeIntel,
+    expiredIntel: state.expiredIntel ?? createDefaultIntelState().expiredIntel,
+    intelRevealTokens: state.intelRevealTokens ?? 0,
     tutorial: state.tutorial ?? createDefaultTutorial(true),
     failedContracts: state.failedContracts ?? [],
     heatCooldowns: { ...heatDefaults, ...(state.heatCooldowns ?? {}) },
@@ -73,6 +80,9 @@ export function normalizeGameState(state: GameState): GameState {
       ? [...state.encounterHistory]
       : [],
     storeInventory: migrateStoreInventory(state.storeInventory),
+    areaMovesToday: state.areaMovesToday ?? financeDefaults.areaMovesToday,
+    lastAreaMoveDay: state.lastAreaMoveDay ?? financeDefaults.lastAreaMoveDay,
+    financeLog: migrateFinanceLog(state.financeLog),
     player: normalizeMoneyFields({
       ...legalDefaults,
       ...state.player,

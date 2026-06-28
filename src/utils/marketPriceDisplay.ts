@@ -117,3 +117,25 @@ export function getMarketTrendTone(change: MarketPriceChange): MarketTrendTone {
   if (change.trend === 'down') return 'falling';
   return 'flat';
 }
+
+export interface PriceHistoryStats {
+  high: number;
+  low: number;
+  confidence: 'low' | 'moderate' | 'high';
+}
+
+export function getPriceHistoryStats(
+  current: number,
+  history: number[] | undefined
+): PriceHistoryStats | null {
+  const series = history?.length ? [...history.slice(-24), current] : current > 0 ? [current] : [];
+  if (series.length < 2) return null;
+  const high = Math.max(...series);
+  const low = Math.min(...series);
+  const spread = high - low;
+  const avg = series.reduce((a, b) => a + b, 0) / series.length;
+  const volatility = avg > 0 ? spread / avg : 0;
+  const confidence: PriceHistoryStats['confidence'] =
+    volatility >= 0.35 ? 'low' : volatility >= 0.15 ? 'moderate' : 'high';
+  return { high, low, confidence };
+}

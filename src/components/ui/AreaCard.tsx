@@ -1,13 +1,16 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { CityAreaDefinition, TerritoryOwner } from '../../types/game';
 import { formatDemandHint, formatOwnerLabel } from '../../game/territory';
-import { fonts, palette, radius, spacing } from '../../theme/theme';
+import { RiskBadge } from '../premium/RiskBadge';
+import { StatChip } from '../premium/StatChip';
+import { palette, radius, spacing, typography } from '../../theme/theme';
 
-function riskLabel(level: number): 'LOW' | 'MED' | 'HIGH' {
-  if (level >= 4) return 'HIGH';
-  if (level >= 3) return 'MED';
-  return 'LOW';
+function riskLevel(level: number): 'low' | 'medium' | 'high' {
+  if (level >= 4) return 'high';
+  if (level >= 3) return 'medium';
+  return 'low';
 }
 
 const OWNER_STYLE: Record<
@@ -17,7 +20,7 @@ const OWNER_STYLE: Record<
   neutral: {
     bg: palette.bgElevated,
     border: palette.border,
-    text: palette.textMuted,
+    text: palette.textSecondary,
   },
   rival_gang: {
     bg: palette.dangerGlow,
@@ -26,13 +29,13 @@ const OWNER_STYLE: Record<
   },
   cartel: {
     bg: palette.purpleGlow,
-    border: palette.purpleBright,
+    border: palette.purple,
     text: palette.purpleBright,
   },
   police_controlled: {
     bg: palette.amberGlow,
     border: palette.amber,
-    text: palette.amber,
+    text: palette.gold,
   },
   player_controlled: {
     bg: palette.neonSoft,
@@ -56,27 +59,16 @@ export function AreaInfoPanel({ area, owner }: { area: CityAreaDefinition; owner
 
   return (
     <View style={styles.infoPanel}>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>RISK</Text>
-        <Text style={styles.infoValue}>{riskLabel(area.riskLevel)}</Text>
+      <View style={styles.chipRow}>
+        <RiskBadge level={area.riskLevel} />
+        <StatChip label="Police" value={`${area.policePresence}%`} tone="amber" />
       </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>POLICE</Text>
-        <Text style={styles.infoValue}>{area.policePresence}%</Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>DEMAND</Text>
-        <Text style={[styles.infoValue, styles.demandValue]} numberOfLines={2}>
-          {demand}
+      <Text style={styles.demandLabel}>Demand intel</Text>
+      <Text style={styles.demandValue}>{demand}</Text>
+      <View style={[styles.ownerBadge, { backgroundColor: ownerStyle.bg, borderColor: ownerStyle.border }]}>
+        <Text style={[styles.ownerText, { color: ownerStyle.text }]}>
+          {formatOwnerLabel(owner)}
         </Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>OWNER</Text>
-        <View style={[styles.ownerBadge, { backgroundColor: ownerStyle.bg, borderColor: ownerStyle.border }]}>
-          <Text style={[styles.ownerText, { color: ownerStyle.text }]}>
-            {formatOwnerLabel(owner).toUpperCase()}
-          </Text>
-        </View>
       </View>
     </View>
   );
@@ -91,37 +83,47 @@ export function AreaCard({
   onPress,
 }: AreaCardProps) {
   const ownerStyle = OWNER_STYLE[owner];
+  const risk = riskLevel(area.riskLevel);
 
   return (
     <Pressable
       style={[
         styles.card,
+        risk === 'high' && styles.cardHigh,
+        risk === 'medium' && styles.cardMed,
+        risk === 'low' && styles.cardLow,
         isCurrent && styles.current,
         disabled && !isCurrent && styles.disabled,
       ]}
       disabled={disabled}
       onPress={onPress}
     >
+      {isCurrent ? (
+        <LinearGradient
+          colors={['rgba(53,255,136,0.12)', 'transparent']}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={[styles.name, isCurrent && styles.nameCurrent]} numberOfLines={1}>
             {area.name}
           </Text>
-          {isCurrent ? <Text style={styles.hereTag}>HERE</Text> : null}
+          {isCurrent ? <Text style={styles.hereTag}>Here</Text> : null}
         </View>
-        <View style={[styles.ownerBadge, { backgroundColor: ownerStyle.bg, borderColor: ownerStyle.border }]}>
-          <Text style={[styles.ownerText, { color: ownerStyle.text }]}>
-            {formatOwnerLabel(owner).toUpperCase()}
-          </Text>
-        </View>
+        <RiskBadge level={area.riskLevel} />
       </View>
       <View style={styles.metaRow}>
-        <Text style={styles.meta}>Risk {riskLabel(area.riskLevel)}</Text>
         <Text style={styles.meta}>Police {area.policePresence}%</Text>
         <Text style={styles.cost}>${area.travelCost}</Text>
       </View>
+      <View style={[styles.ownerBadge, { backgroundColor: ownerStyle.bg, borderColor: ownerStyle.border }]}>
+        <Text style={[styles.ownerText, { color: ownerStyle.text }]}>
+          {formatOwnerLabel(owner)}
+        </Text>
+      </View>
       {blockedReason ? (
-        <Text style={styles.blocked} numberOfLines={1}>
+        <Text style={styles.blocked} numberOfLines={2}>
           {blockedReason}
         </Text>
       ) : null}
@@ -131,15 +133,25 @@ export function AreaCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: palette.bgElevated,
+    backgroundColor: palette.bgCard,
     borderWidth: 1,
     borderColor: palette.border,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    minHeight: 72,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    minHeight: 88,
+    overflow: 'hidden',
+  },
+  cardLow: {
+    borderColor: palette.neonDim,
+  },
+  cardMed: {
+    borderColor: palette.amberDim,
+  },
+  cardHigh: {
+    borderColor: palette.dangerDim,
   },
   current: {
-    borderColor: palette.neonDim,
+    borderColor: palette.neon,
     backgroundColor: palette.neonSoft,
   },
   disabled: {
@@ -160,8 +172,7 @@ const styles = StyleSheet.create({
   },
   name: {
     color: palette.text,
-    fontFamily: fonts.body,
-    fontSize: 13,
+    fontSize: typography.body,
     fontWeight: '700',
     flexShrink: 1,
   },
@@ -170,74 +181,61 @@ const styles = StyleSheet.create({
   },
   hereTag: {
     color: palette.neon,
-    fontSize: 8,
+    fontSize: typography.caption,
     fontWeight: '800',
     backgroundColor: palette.neonSoft,
-    borderRadius: radius.sm,
-    paddingHorizontal: 5,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    overflow: 'hidden',
   },
   ownerBadge: {
+    alignSelf: 'flex-start',
     borderWidth: 1,
     borderRadius: radius.pill,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    marginTop: spacing.sm,
   },
   ownerText: {
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: typography.caption,
+    fontWeight: '700',
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
   },
   meta: {
-    color: palette.textMuted,
-    fontSize: 10,
+    color: palette.textSecondary,
+    fontSize: typography.caption,
   },
   cost: {
-    color: palette.textSecondary,
-    fontSize: 10,
-    marginLeft: 'auto',
-    fontWeight: '700',
+    color: palette.text,
+    fontSize: typography.body,
+    fontWeight: '800',
   },
   blocked: {
     color: palette.danger,
-    fontSize: 9,
-    marginTop: 4,
+    fontSize: typography.caption,
+    marginTop: spacing.sm,
   },
   infoPanel: {
     gap: spacing.sm,
-    paddingTop: spacing.xs,
+    paddingTop: spacing.sm,
   },
-  infoRow: {
+  chipRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  infoLabel: {
-    color: palette.textMuted,
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1,
-    width: 56,
-  },
-  infoValue: {
-    color: palette.text,
-    fontSize: 12,
-    fontWeight: '700',
-    flex: 1,
-    textAlign: 'right',
+  demandLabel: {
+    color: palette.textSecondary,
+    fontSize: typography.caption,
+    fontWeight: '600',
   },
   demandValue: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: palette.textSecondary,
+    color: palette.text,
+    fontSize: typography.caption,
+    lineHeight: 18,
   },
 });

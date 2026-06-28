@@ -15,6 +15,8 @@ import { checkGameOverState } from './engineHelpers';
 import { normalizeGameState } from './stateUtils';
 import { applyTrustDelta, createDefaultRelation } from './npcSystem';
 import { getCombinedHeatMultiplier, scalePositiveHeat } from './worldEvents';
+import { revealInformantIntel, tryTriggerIntelReveal } from './intelSystem';
+import { CommodityId } from '../types/game';
 
 function getInventoryCount(inventory: InventoryItem[]): number {
   return inventory.reduce((sum, item) => sum + item.quantity, 0);
@@ -376,28 +378,33 @@ const CHOICE_RESOLVERS: Record<string, ChoiceResolver> = {
     if (state.player.cash < cost) {
       return applyDelta(state, { memoryFlag: 'ignoredInformant', npcAttitudeDelta: -15 }, 'Couldn\'t pay Whisper. Tip lost.');
     }
-    const commodityId = event.context.commodityId ?? 'crack';
+    const commodityId = (event.context.commodityId ?? 'crack') as CommodityId;
     const loc = event.context.locationId ?? getPlayerAreaKey(state.player);
     const parsed = parseAreaKey(loc);
-    const locName = parsed
-      ? getAreaLabel(parsed.cityId, parsed.areaId)
-      : loc;
-    return applyDelta(
+    const cityId = parsed?.cityId ?? state.player.currentCityId;
+    const areaId = parsed?.areaId ?? state.player.currentAreaId;
+    let updated = applyDelta(
       state,
       { cash: -cost, reputation: 2, npcAttitudeDelta: 10 },
-      `Paid Whisper $${cost}. Tip: cheap ${COMMODITY_MAP[commodityId]?.name} in ${locName}.`
+      `Paid Whisper $${cost}. Street intel incoming.`
     );
+    updated = revealInformantIntel(updated, commodityId, cityId, areaId);
+    return updated;
   },
   informant_trade: (state) => {
     const qty = state.player.inventory.reduce((s, i) => s + i.quantity, 0);
     if (qty < 3) {
       return applyDelta(state, { npcAttitudeDelta: -5 }, 'Nothing to trade. Whisper walks.');
     }
-    return applyDelta(
+    let updated = applyDelta(
       state,
       { inventoryRemoveQty: 3, heat: -8, reputation: 1 },
       'Traded 3 units for intel. Heat -8.'
     );
+    const city = state.player.currentCityId;
+    const drug = (state.player.inventory[0]?.commodityId ?? 'weed') as CommodityId;
+    updated = revealInformantIntel(updated, drug, city, state.player.currentAreaId);
+    return tryTriggerIntelReveal(updated, 'informant');
   },
   informant_ignore: (state) =>
     applyDelta(state, { memoryFlag: 'ignoredInformant', npcAttitudeDelta: -20 }, 'Ignored Whisper. They remember.'),

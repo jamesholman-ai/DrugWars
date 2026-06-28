@@ -9,6 +9,7 @@
     "babel-preset-expo": "~56.0.0",
     "expo": "^56.0.0",
     "expo-dev-client": "~56.0.20",
+    "expo-linear-gradient": "~56.0.4",
     "expo-splash-screen": "~56.0.10",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",

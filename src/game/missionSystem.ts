@@ -29,6 +29,7 @@ import { applyProgressionAfterAction } from './progression';
 import { addDirtyMoney } from './money';
 import { clamp, pickRandom, randomInt } from '../utils/random';
 import { formatMoney } from '../utils/format';
+import { revealMissionIntel, getActiveIntel } from './intelSystem';
 
 const MAX_PRICE_TIPS = 5;
 
@@ -187,10 +188,7 @@ function applyRewards(state: GameState, rewards: MissionReward): GameState {
       direction: rewards.priceTipDirection,
       expiresDay: updated.player.day + 2,
     };
-    updated = {
-      ...updated,
-      activePriceTips: [...(updated.activePriceTips ?? []), tip].slice(-MAX_PRICE_TIPS),
-    };
+    updated = revealMissionIntel(updated, tip);
   }
 
   return updated;
@@ -637,8 +635,7 @@ export function tickMissionsOnDayAdvance(state: GameState): GameState {
   );
   updated = { ...updated, activePriceTips: expiredTips };
 
-  updated = generateDailyObjectives(updated);
-  return updated;
+  return generateDailyObjectives(updated);
 }
 
 export function claimMissionReward(state: GameState, missionId: string): GameState {
@@ -878,7 +875,15 @@ export function getDailyProgressLabel(obj: DailyObjective): string {
 }
 
 export function getActivePriceTips(state: GameState): PriceTip[] {
-  return (state.activePriceTips ?? []).filter((t) => t.expiresDay >= state.player.day);
+  return getActiveIntel(state)
+    .filter((e) => e.commodityId && e.cityId && e.direction)
+    .map((e) => ({
+      id: e.id,
+      commodityId: e.commodityId!,
+      cityId: e.cityId!,
+      direction: e.direction!,
+      expiresDay: e.expiresDay,
+    }));
 }
 
 export function formatPriceTip(tip: PriceTip): string {

@@ -62,6 +62,10 @@ import {
   syncMissionState,
 } from './missionSystem';
 import { migrateTutorial } from './tutorialSystem';
+import {
+  migrateIntelFromLegacy,
+  initializeIntelState,
+} from './intelSystem';
 import { normalizeMoneyFields } from './money';
 import {
   createInitialPlayerState,
@@ -71,9 +75,10 @@ import { normalizeGameState, migrateExtendedState } from './stateUtils';
 import { MAX_ACTIVE_WORLD_EVENTS } from '../data/worldEvents';
 import { migrateStoreInventory } from './storeInventory';
 import { migrateLegacyProgression } from './progression';
+import { createDefaultFinanceFields, migrateFinanceLog } from './financeSystem';
 
 export const SAVE_KEY = '@neon_underworld/save';
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 12;
 
 export interface SaveEnvelope {
   version: number;
@@ -582,6 +587,8 @@ export function migrateGameState(raw: unknown): GameState | null {
     hasExistingProgress
   );
 
+  const financeDefaults = createDefaultFinanceFields(player.day);
+
   const migrated: GameState = {
     player,
     marketPrices,
@@ -625,6 +632,15 @@ export function migrateGameState(raw: unknown): GameState | null {
     storeInventory: migrateStoreInventory(
       isRecord(stateRaw) ? stateRaw.storeInventory : undefined
     ),
+    areaMovesToday:
+      isRecord(stateRaw) && typeof stateRaw.areaMovesToday === 'number'
+        ? stateRaw.areaMovesToday
+        : financeDefaults.areaMovesToday,
+    lastAreaMoveDay:
+      isRecord(stateRaw) && typeof stateRaw.lastAreaMoveDay === 'number'
+        ? stateRaw.lastAreaMoveDay
+        : financeDefaults.lastAreaMoveDay,
+    financeLog: migrateFinanceLog(isRecord(stateRaw) ? stateRaw.financeLog : undefined),
   };
 
   if (!CITY_MAP[migrated.player.currentCityId]) {
@@ -644,6 +660,7 @@ export function migrateGameState(raw: unknown): GameState | null {
   }
 
   let normalized = normalizeGameState(migrated);
+  normalized = migrateIntelFromLegacy(normalized, activePriceTips);
 
   const needsMissionInit =
     (normalized.activeMissions ?? []).length === 0 &&
@@ -658,6 +675,10 @@ export function migrateGameState(raw: unknown): GameState | null {
   );
   if (todaysObjectives.length === 0) {
     normalized = generateDailyObjectives(normalized);
+  }
+
+  if ((normalized.hiddenOpportunities ?? []).length === 0) {
+    normalized = initializeIntelState(normalized);
   }
 
   return normalized;

@@ -10,6 +10,7 @@ import { getInventoryUsed } from '../game/economy';
 import { getCurrentRank } from '../game/progression';
 import { COMMODITY_MAP } from '../data/commodities';
 import { getAreaLabel, getPlayerAreaKey } from '../data/locations';
+import { getEffectivePropertyStats, getEffectiveStorageCapacity } from '../game/propertyManagementSystem';
 import {
   getLocalOwnedSafehouse,
   getStoredInventory,
@@ -48,6 +49,12 @@ export function InventoryScreen({ navigation }: Props) {
   const localSh = getLocalOwnedSafehouse(gameState);
   const stored = localSh ? getStoredInventory(gameState, localSh.def.id) : [];
   const storedUsed = localSh ? getStoredUsed(gameState, localSh.def.id) : 0;
+  const propertyStats = localSh?.owned
+    ? getEffectivePropertyStats(gameState, localSh.owned)
+    : null;
+  const propertyCapacity = localSh
+    ? getEffectiveStorageCapacity(gameState, localSh.def.id)
+    : 0;
 
   return (
     <>
@@ -61,7 +68,7 @@ export function InventoryScreen({ navigation }: Props) {
           rankProgress={computeRankProgressPercent(gameState)}
         />
       }
-      bottomNav={<GameNavFooter navigation={navigation} active="Inventory" />}
+      bottomNav={<GameNavFooter navigation={navigation} active="Empire" />}
     >
       <Pressable style={styles.linkRow} onPress={() => navigation.navigate('Safehouses')}>
         <Text style={styles.linkText}>Properties & off-street storage →</Text>
@@ -99,7 +106,7 @@ export function InventoryScreen({ navigation }: Props) {
       {localSh ? (
         <SectionCard
           title="Property Storage"
-          subtitle={`${localSh.def.name} · ${storedUsed}/${localSh.def.storageCapacity} stored`}
+          subtitle={`${localSh.def.name} · ${storedUsed}/${propertyCapacity} stored${propertyStats ? ` · Security L${propertyStats.securityLevel}` : ''}`}
         >
           {stored.length === 0 ? (
             <Text style={styles.empty}>Nothing stored here yet.</Text>

@@ -28,19 +28,23 @@ This release does not include:
 
 The game stores your save file locally on your device using platform storage (for example, AsyncStorage on React Native). This data includes game progress such as cash, inventory, missions, and settings.
 
-Purchase entitlements and local purchase history (product id, date, restore vs purchase — no personal information) are also stored on your device when you use the optional in-app store.
+A separate local **player wallet** (optional consumable credits and purchase history metadata) is also stored on your device when you use the in-app store in development or after in-app purchases are enabled.
 
 - Save data never leaves your device unless you back up your device through your OS (iCloud, Google Backup, etc.).
-- You can delete save data anytime using **Reset Save** on the home screen or by uninstalling the app.
+- **Reset Run** on the home screen deletes your current run but keeps wallet credits.
+- **Reset All Data** (development builds only) clears both run save and wallet.
+- You can delete all local data by uninstalling the app.
 
 ## Optional in-app purchases
 
-When enabled, Drug Wars Reloaded offers **optional consumable in-app purchases** processed entirely by **Apple App Store** or **Google Play**. We do not operate our own payment system and do not collect payment card numbers or billing addresses.
+**Version 1.0.0:** In-app purchases are **not enabled**. No payments are processed in this release.
+
+When enabled in a future update, Drug Wars Reloaded will offer **optional consumable in-app purchases** processed entirely by **Apple App Store** or **Google Play**. We do not operate our own payment system and do not collect payment card numbers or billing addresses.
 
 - Purchases are optional — the base game is fully playable without them.
 - Consumables include fixed packs (Starter Boost, Emergency Lawyer tokens, Intel tips, Safehouse drops, Heat cleanup, Crew loyalty, Business recovery).
 - There are no loot boxes, random paid rewards, subscriptions, or gambling mechanics.
-- Consumable balances and purchase history are stored locally on your device with your save.
+- Consumable balances and purchase history are stored locally on your device in a separate wallet file.
 - Use **Restore Purchases** when platform billing is live to re-sync prior store transactions via your platform account.
 - We do not receive personally identifiable information from these transactions.
 
@@ -58,13 +62,9 @@ If we add analytics, accounts, ads, or online features in a future update, we wi
 
 ## Contact
 
-Questions about this privacy policy:
+Questions about this privacy policy or support:
 
 **contact@aiventure-studios.com**
-
-General support:
-
-**support@aiventure-studios.com**
 
 ## Your rights
 

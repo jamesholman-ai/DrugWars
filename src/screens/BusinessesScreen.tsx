@@ -5,7 +5,9 @@ import { ActionMessage } from '../components/ActionMessage';
 import { GameButton } from '../components/GameButton';
 import { GameNavFooter } from '../components/GameNavFooter';
 import { AppShell, EventBanner, MoneyCard, ScreenHeader, SectionCard } from '../components/ui';
+import { EmptyState, EmpireBusinessCard } from '../components/premium';
 import { useGame } from '../game/GameContext';
+import { getPortfolioSummary } from '../game/businessManagementSystem';
 import {
   BUSINESS_MAP,
   BUSINESS_REPAIR_COST,
@@ -26,7 +28,7 @@ import { getCurrentRank } from '../game/progression';
 import { RootStackParamList } from '../types/game';
 import { formatMoney } from '../utils/format';
 import { computeRankProgressPercent } from '../utils/rankProgress';
-import { fonts, palette, radius, spacing } from '../theme/theme';
+import { palette, radius, spacing, typography } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Businesses'>;
 
@@ -47,26 +49,26 @@ export function BusinessesScreen({ navigation }: Props) {
   const launderCap = getTotalLaunderingCapacity(gameState);
   const heatReduction = getTotalBusinessHeatReduction(gameState);
   const avgRisk = getAverageBusinessRisk(gameState);
-  const dirty = player.dirtyCash ?? 0;
-  const clean = player.cleanCash ?? 0;
+  const portfolio = getPortfolioSummary(gameState);
 
   return (
     <AppShell
       header={
         <ScreenHeader
           title="Businesses"
+          subtitle="Fronts · laundering · upgrades"
           day={player.day}
           location={getAreaLabel(player.currentCityId, player.currentAreaId)}
           rank={rank.name}
           rankProgress={computeRankProgressPercent(gameState)}
         />
       }
-      bottomNav={<GameNavFooter navigation={navigation} active="Progress" />}
+      bottomNav={<GameNavFooter navigation={navigation} active="Empire" />}
     >
       <View style={styles.moneyRow}>
-        <MoneyCard label="Dirty" amount={formatMoney(dirty)} tone="amber" icon="💸" />
-        <MoneyCard label="Clean" amount={formatMoney(clean)} tone="green" icon="✓" />
-        <MoneyCard label="Income" amount={formatMoney(passiveIncome)} tone="purple" icon="📈" />
+        <MoneyCard label="Net/day" amount={formatMoney(portfolio.income - portfolio.upkeep)} tone="green" icon="📈" />
+        <MoneyCard label="Launder" amount={formatMoney(portfolio.launder)} tone="purple" icon="💧" />
+        <MoneyCard label="Fronts" amount={String(portfolio.count)} tone="amber" icon="🏢" />
       </View>
 
       <ActionMessage message={lastMessage} />
@@ -87,9 +89,30 @@ export function BusinessesScreen({ navigation }: Props) {
         ) : null}
       </SectionCard>
 
+      {(ownedBusinesses ?? []).length > 0 ? (
+        <SectionCard title="Portfolio" subtitle="Tap a front for upgrades and manager">
+          {(ownedBusinesses ?? []).map((record) => (
+            <EmpireBusinessCard
+              key={record.businessId}
+              state={gameState}
+              record={record}
+              onPress={() => navigation.navigate('BusinessDetail', { businessId: record.businessId })}
+            />
+          ))}
+        </SectionCard>
+      ) : (
+        <SectionCard title="Portfolio">
+          <EmptyState
+            icon="🏢"
+            title="No businesses yet"
+            message="Buy a front on-site to earn clean income and launder dirty cash. Upgrades and crew managers unlock later."
+          />
+        </SectionCard>
+      )}
+
       <SectionCard title="This Area" subtitle={`${local.length} listing(s)`}>
         {local.length === 0 ? (
-          <Text style={styles.empty}>No businesses for sale in this district.</Text>
+          <EmptyState icon="📍" title="Nothing for sale here" message="Travel to districts with available fronts." />
         ) : (
           local.map((def) => {
             const owned = isBusinessOwned(gameState, def.id);
@@ -120,8 +143,7 @@ export function BusinessesScreen({ navigation }: Props) {
                 {owned ? (
                   <>
                     <Text style={styles.owned}>
-                      OWNED · Condition {record?.condition ?? 100}%
-                      {record && record.condition <= 0 ? ' · SHUT DOWN' : ''}
+                      OWNED · tap Portfolio above for management
                     </Text>
                     {record && record.condition < 100 ? (
                       <GameButton
@@ -152,22 +174,6 @@ export function BusinessesScreen({ navigation }: Props) {
           })
         )}
       </SectionCard>
-
-      {(ownedBusinesses ?? []).length > 0 ? (
-        <SectionCard title="Your Portfolio" subtitle="All owned fronts">
-          {(ownedBusinesses ?? []).map((o) => {
-            const def = BUSINESS_MAP[o.businessId];
-            const name = def?.name ?? o.businessId;
-            const city = def ? getAreaLabel(def.cityId, def.areaId) : 'Unknown';
-            return (
-              <Text key={o.businessId} style={styles.ownedLine}>
-                {name} · {city} · condition {o.condition}%
-                {o.condition <= 0 ? ' (needs repair)' : ''}
-              </Text>
-            );
-          })}
-        </SectionCard>
-      ) : null}
     </AppShell>
   );
 }
@@ -177,25 +183,23 @@ const styles = StyleSheet.create({
   empty: { color: palette.textMuted, fontSize: 12 },
   statLine: { color: palette.textSecondary, fontSize: 11, marginBottom: 4 },
   card: {
-    backgroundColor: palette.bgElevated,
-    borderRadius: radius.md,
+    backgroundColor: palette.bgCard,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: palette.border,
-    padding: spacing.sm,
+    padding: spacing.md,
     marginBottom: spacing.sm,
   },
   name: {
     color: palette.text,
-    fontFamily: fonts.display,
-    fontSize: 14,
+    fontSize: typography.subtitle,
     fontWeight: '800',
-    textTransform: 'uppercase',
   },
-  type: { color: palette.neon, fontSize: 9, fontWeight: '800', marginTop: 2 },
-  desc: { color: palette.textSecondary, fontSize: 11, marginTop: 4, lineHeight: 15 },
-  meta: { color: palette.textMuted, fontSize: 10, marginTop: 4 },
-  locked: { color: palette.danger, fontSize: 10, fontWeight: '700', marginTop: 6 },
-  owned: { color: palette.neon, fontSize: 10, fontWeight: '700', marginTop: 6 },
+  type: { color: palette.neon, fontSize: typography.caption, fontWeight: '700', marginTop: 4 },
+  desc: { color: palette.textSecondary, fontSize: typography.caption, marginTop: 6, lineHeight: 18 },
+  meta: { color: palette.textMuted, fontSize: typography.caption, marginTop: 4, lineHeight: 16 },
+  locked: { color: palette.danger, fontSize: typography.caption, fontWeight: '700', marginTop: 8 },
+  owned: { color: palette.neon, fontSize: typography.caption, fontWeight: '700', marginTop: 8 },
   ownedLine: { color: palette.textSecondary, fontSize: 11, marginBottom: 4 },
   btn: { marginTop: spacing.sm, marginBottom: 0 },
 });

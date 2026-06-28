@@ -1,0 +1,15 @@
+# Reduce EAS upload archive size — keep app source, assets, and config.
+.git
+.github
+.vscode
+node_modules
+coverage
+*.log
+target
+screenshots
+mockups
+design
+docs
+.DS_Store
+npm-debug.log
+yarn-error.log

@@ -5,7 +5,9 @@ import { ActionMessage } from '../components/ActionMessage';
 import { EventModal } from '../components/EventModal';
 import { GameNavFooter } from '../components/GameNavFooter';
 import { TradeQuantityModal } from '../components/TradeQuantityModal';
-import { AppShell, MarketCard, MoneyCard, ScreenHeader, SectionCard } from '../components/ui';
+import { AppShell, MarketCard, MoneyCard, ScreenHeader } from '../components/ui';
+import { AppIcons } from '../theme/icons';
+import { SectionHeader, SkeletonShimmer } from '../components/premium';
 import { useGame } from '../game/GameContext';
 import { getNetWorth } from '../game/economy';
 import { getCurrentRank } from '../game/progression';
@@ -16,7 +18,7 @@ import { commodityIcon } from '../utils/commodityIcons';
 import { formatMoney } from '../utils/format';
 import { computeRankProgressPercent } from '../utils/rankProgress';
 import { getCommodityWorldEventBadge, getMarketPriceChange } from '../utils/marketPriceDisplay';
-import { fonts, palette, spacing } from '../theme/theme';
+import { palette, spacing, typography } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Market'>;
 
@@ -88,6 +90,7 @@ export function MarketScreen({ navigation }: Props) {
       return {
         commodity,
         price,
+        priceHistory: history[commodity.id],
         priceChange,
         eventBadge: getCommodityWorldEventBadge(events, areaKey, commodity.id),
         owned,
@@ -102,8 +105,15 @@ export function MarketScreen({ navigation }: Props) {
   }, [gameState, openTrade]);
 
   if (!gameState || !headerData) {
-    return null;
+    return (
+      <AppShell>
+        <SkeletonShimmer lines={3} height={120} />
+      </AppShell>
+    );
   }
+
+  const { player } = gameState;
+  const netWorthVal = getNetWorth(player, gameState.marketPrices);
 
   return (
     <>
@@ -120,35 +130,36 @@ export function MarketScreen({ navigation }: Props) {
       bottomNav={<GameNavFooter navigation={navigation} active="Market" />}
     >
       <View style={styles.moneyRow}>
-        <MoneyCard label="Available Cash" amount={headerData.cash} tone="green" icon="💵" />
-        <MoneyCard label="Debt" amount={headerData.debt} tone="red" icon="🔒" />
-        <MoneyCard label="Net" amount={headerData.netWorth} tone="purple" icon="🏦" />
+        <MoneyCard label="Available Cash" amount={headerData.cash} amountValue={player.cash} tone="green" icon={AppIcons.money} />
+        <MoneyCard label="Debt" amount={headerData.debt} amountValue={player.debt} tone="red" icon={AppIcons.debt} />
+        <MoneyCard label="Net" amount={headerData.netWorth} amountValue={netWorthVal} tone="purple" icon={AppIcons.netWorth} />
       </View>
 
       <ActionMessage message={gameState.lastMessage} />
 
-      <SectionCard
-        title="Price Board"
-        subtitle="▲ rising · ▼ falling · ◆ flat · vs last update"
-      >
-        {rows.map((row) => (
-          <MarketCard
-            key={row.commodity.id}
-            name={row.commodity.name}
-            icon={commodityIcon(row.commodity.id)}
-            price={row.price}
-            priceChange={row.priceChange}
-            eventBadge={row.eventBadge}
-            ownedQty={row.owned}
-            canBuy={row.canBuy}
-            canSell={row.canSell}
-            onBuy={row.onBuy}
-            onSell={row.onSell}
-          />
-        ))}
-      </SectionCard>
+      <SectionHeader
+        title="Market Index"
+        subtitle="▲ rising · ▼ falling · vs last update · world events highlighted"
+      />
 
-      <Text style={styles.hint}>Tap BUY or SELL to choose quantity.</Text>
+      {rows.map((row) => (
+        <MarketCard
+          key={row.commodity.id}
+          name={row.commodity.name}
+          icon={commodityIcon(row.commodity.id)}
+          price={row.price}
+          priceChange={row.priceChange}
+          priceHistory={row.priceHistory}
+          eventBadge={row.eventBadge}
+          ownedQty={row.owned}
+          canBuy={row.canBuy}
+          canSell={row.canSell}
+          onBuy={row.onBuy}
+          onSell={row.onSell}
+        />
+      ))}
+
+      <Text style={styles.hint}>Tap Buy or Sell to choose quantity.</Text>
     </AppShell>
 
     <TradeQuantityModal
@@ -181,8 +192,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     color: palette.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 10,
+    fontSize: typography.caption,
     textAlign: 'center',
     marginBottom: spacing.md,
   },

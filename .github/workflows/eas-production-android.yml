@@ -1,0 +1,45 @@
+# Manual Android production AAB build for Google Play upload.
+#
+# Required GitHub secret: EXPO_TOKEN
+#   1. Log in at https://expo.dev → Account Settings → Access Tokens
+#   2. Create a Robot token with EAS Build permissions
+#   3. GitHub repo → Settings → Secrets and variables → Actions → EXPO_TOKEN
+#
+# Trigger: GitHub → Actions → "EAS Production Android" → Run workflow
+name: EAS Production Android
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-production-aab:
+    name: EAS Build (Android production AAB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: EAS Build — Android production (AAB)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile production --non-interactive

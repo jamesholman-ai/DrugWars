@@ -8,6 +8,7 @@ import { getPlayerAreaKey } from '../data/locations';
 import { isCityUnlocked } from './progression';
 import { withMessage } from './messages';
 import { applyProgressionAfterAction } from './progression';
+import { tryTriggerIntelReveal } from './intelSystem';
 import { clamp, randomInt } from '../utils/random';
 import { adjustLocalHeat } from './territory';
 import { getSupplierScoutBonuses } from './crewBonuses';
@@ -264,6 +265,8 @@ export function buyFromSupplier(
     delivered < quantity
       ? ` Short shipment: got ${delivered}/${quantity}.`
       : '';
+
+  updated = tryTriggerIntelReveal(updated, 'supplier');
 
   return applyProgressionAfterAction(
     trackMissionEvent(

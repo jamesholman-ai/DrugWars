@@ -3,17 +3,17 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ActiveWorldEvent, WorldEventType } from '../../types/game';
 import { daysRemaining, eventAppliesToLocation } from '../../game/worldEvents';
 import { WorldEventBadge } from './WorldEventBadge';
-import { fonts, palette, radius, spacing } from '../../theme/theme';
+import { palette, radius, shadows, spacing, typography } from '../../theme/theme';
 
 const TYPE_LABEL: Record<WorldEventType, string> = {
-  market_shortage: 'SHORTAGE',
-  market_crash: 'CRASH',
-  market_boom: 'BOOM',
-  police_crackdown: 'CRACKDOWN',
-  gang_war: 'GANG WAR',
-  airport_lockdown: 'AIRPORT',
-  supplier_flood: 'FLOOD',
-  informant_network_buzz: 'INTEL',
+  market_shortage: 'Shortage',
+  market_crash: 'Crash',
+  market_boom: 'Boom',
+  police_crackdown: 'Crackdown',
+  gang_war: 'Gang War',
+  airport_lockdown: 'Lockdown',
+  supplier_flood: 'Flood',
+  informant_network_buzz: 'Intel',
 };
 
 interface WorldEventTickerProps {
@@ -26,20 +26,24 @@ export function WorldEventTicker({ events, currentDay, currentAreaKey }: WorldEv
   if (events.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyLabel}>WORLD TICKER</Text>
-        <Text style={styles.emptyText}>No active shortages, crackdowns, or booms.</Text>
+        <Text style={styles.emptyIcon}>📡</Text>
+        <Text style={styles.emptyTitle}>World Intel</Text>
+        <Text style={styles.emptyText}>Markets are quiet — no active shortages or crackdowns.</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.header}>WORLD TICKER</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.headerIcon}>📡</Text>
+        <Text style={styles.header}>World Intel</Text>
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {events.map((event) => {
           const remaining = daysRemaining(event, currentDay);
           const local = eventAppliesToLocation(event, currentAreaKey);
-          const typeLabel = TYPE_LABEL[event.type] ?? event.type.toUpperCase();
+          const typeLabel = TYPE_LABEL[event.type] ?? event.type;
 
           return (
             <View key={event.id} style={[styles.chip, local && styles.chipLocal]}>
@@ -53,7 +57,7 @@ export function WorldEventTicker({ events, currentDay, currentAreaKey }: WorldEv
               <Text style={styles.desc} numberOfLines={2}>
                 {event.description}
               </Text>
-              {local ? <Text style={styles.hereTag}>AFFECTS THIS AREA</Text> : null}
+              {local ? <Text style={styles.hereTag}>Affects this area</Text> : null}
             </View>
           );
         })}
@@ -68,28 +72,34 @@ const styles = StyleSheet.create({
     backgroundColor: palette.bgCard,
     borderWidth: 1,
     borderColor: palette.border,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingLeft: spacing.sm,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  headerIcon: {
+    fontSize: 18,
   },
   header: {
-    color: palette.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 9,
+    color: palette.cyan,
+    fontSize: typography.body,
     fontWeight: '800',
-    letterSpacing: 1.5,
-    marginBottom: spacing.xs,
   },
   scroll: {
     gap: spacing.sm,
     paddingRight: spacing.sm,
   },
   chip: {
-    width: 200,
-    backgroundColor: palette.bgElevated,
+    width: 220,
+    backgroundColor: palette.bgCardHover,
     borderWidth: 1,
     borderColor: palette.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.sm,
   },
   chipLocal: {
@@ -100,50 +110,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   typeLabel: {
-    color: palette.amber,
-    fontSize: 8,
+    color: palette.gold,
+    fontSize: typography.caption,
     fontWeight: '800',
-    letterSpacing: 0.5,
   },
   title: {
     color: palette.text,
-    fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: typography.body,
     fontWeight: '700',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   desc: {
     color: palette.textSecondary,
-    fontSize: 9,
-    lineHeight: 13,
+    fontSize: typography.caption,
+    lineHeight: 16,
   },
   hereTag: {
     color: palette.neon,
-    fontSize: 8,
-    fontWeight: '800',
-    marginTop: 4,
-    letterSpacing: 0.5,
+    fontSize: typography.caption,
+    fontWeight: '700',
+    marginTop: 6,
   },
   empty: {
     marginBottom: spacing.md,
     backgroundColor: palette.bgCard,
     borderWidth: 1,
     borderColor: palette.border,
-    borderRadius: radius.md,
-    padding: spacing.sm,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    alignItems: 'center',
+    ...shadows.card,
   },
-  emptyLabel: {
-    color: palette.textMuted,
-    fontSize: 9,
+  emptyIcon: {
+    fontSize: 28,
+    marginBottom: spacing.sm,
+  },
+  emptyTitle: {
+    color: palette.cyan,
+    fontSize: typography.subtitle,
     fontWeight: '800',
-    letterSpacing: 1.5,
     marginBottom: 4,
   },
   emptyText: {
     color: palette.textSecondary,
-    fontSize: 10,
+    fontSize: typography.caption,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

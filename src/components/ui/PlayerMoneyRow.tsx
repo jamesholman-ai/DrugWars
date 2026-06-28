@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { MoneyCard } from './MoneyCard';
-import { fonts, palette, radius, spacing } from '../../theme/theme';
+import { MoneyPanel } from '../premium/MoneyPanel';
+import { AppIcons } from '../../theme/icons';
+import { palette, radius, spacing, typography } from '../../theme/theme';
 
 interface PlayerMoneyRowProps {
   availableCash: string;
   dirtyCash: string;
   cleanCash: string;
+  availableValue?: number;
+  dirtyValue?: number;
+  cleanValue?: number;
   compact?: boolean;
 }
 
@@ -21,6 +25,9 @@ export function PlayerMoneyRow({
   availableCash,
   dirtyCash,
   cleanCash,
+  availableValue,
+  dirtyValue,
+  cleanValue,
   compact = false,
 }: PlayerMoneyRowProps) {
   const [helpKey, setHelpKey] = useState<'available' | 'dirty' | 'clean' | null>(null);
@@ -31,26 +38,47 @@ export function PlayerMoneyRow({
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.row}>
-        <Pressable style={styles.cardTap} onPress={() => toggle('available')}>
-          <MoneyCard label="Available Cash" amount={availableCash} tone="green" icon="💵" />
+      <Pressable onPress={() => toggle('available')} accessibilityLabel="Cash on hand">
+        <MoneyPanel
+          label="Cash on Hand"
+          amount={availableCash}
+          amountValue={availableValue}
+          tone="green"
+          icon={AppIcons.money}
+          hero
+        />
+      </Pressable>
+
+      <View style={styles.secondaryRow}>
+        <Pressable style={styles.secondaryTap} onPress={() => toggle('dirty')} accessibilityLabel="Dirty cash">
+          <MoneyPanel
+            label="Dirty"
+            amount={dirtyCash}
+            amountValue={dirtyValue}
+            tone="amber"
+            icon={AppIcons.dirty}
+          />
         </Pressable>
-        <Pressable style={styles.cardTap} onPress={() => toggle('dirty')}>
-          <MoneyCard label="Dirty Cash" amount={dirtyCash} tone="amber" icon="💸" />
-        </Pressable>
-        <Pressable style={styles.cardTap} onPress={() => toggle('clean')}>
-          <MoneyCard label="Clean Cash" amount={cleanCash} tone="purple" icon="✓" />
+        <Pressable style={styles.secondaryTap} onPress={() => toggle('clean')} accessibilityLabel="Clean cash">
+          <MoneyPanel
+            label="Clean"
+            amount={cleanCash}
+            amountValue={cleanValue}
+            tone="purple"
+            icon={AppIcons.clean}
+          />
         </Pressable>
       </View>
+
       {helpKey ? (
         <View style={styles.helpBox}>
           <Text style={styles.helpText}>{HELP[helpKey]}</Text>
           {!compact ? (
-            <Text style={styles.helpHint}>Tap a money card again to dismiss.</Text>
+            <Text style={styles.helpHint}>Tap again to dismiss.</Text>
           ) : null}
         </View>
       ) : (
-        <Text style={styles.helpHint}>Tap any money card for details.</Text>
+        <Text style={styles.helpHint}>Tap a balance for details.</Text>
       )}
     </View>
   );
@@ -59,33 +87,31 @@ export function PlayerMoneyRow({
 const styles = StyleSheet.create({
   wrap: {
     marginBottom: spacing.md,
+    gap: spacing.sm,
   },
-  row: {
+  secondaryRow: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  cardTap: {
+  secondaryTap: {
     flex: 1,
     minWidth: 0,
   },
   helpBox: {
-    marginTop: spacing.sm,
-    backgroundColor: palette.bgElevated,
+    backgroundColor: palette.bgCardHover,
     borderWidth: 1,
     borderColor: palette.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.sm,
   },
   helpText: {
     color: palette.textSecondary,
-    fontFamily: fonts.body,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: typography.caption,
+    lineHeight: 18,
   },
   helpHint: {
     color: palette.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 9,
+    fontSize: typography.caption,
     marginTop: spacing.xs,
     textAlign: 'center',
   },

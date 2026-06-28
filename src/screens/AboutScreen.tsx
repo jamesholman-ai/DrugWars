@@ -2,13 +2,14 @@ import React from 'react';
 import { Linking, Pressable, StyleSheet, Text } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { GameButton } from '../components/GameButton';
+import { GameNavFooter } from '../components/GameNavFooter';
 import { AppShell, SectionCard } from '../components/ui';
+import { useGame } from '../game/GameContext';
 import {
   APP_NAME,
   APP_TAGLINE,
   APP_VERSION,
   APP_BUILD,
-  BUNDLE_ID,
   ABOUT_PRIVACY_BULLETS,
   CREDITS_LINE,
   PRIVACY_POLICY_URL,
@@ -17,11 +18,12 @@ import {
 } from '../constants/appInfo';
 import { GAME_DISCLAIMER } from '../data/commodities';
 import { RootStackParamList } from '../types/game';
-import { fonts, palette, spacing } from '../theme/theme';
+import { palette, spacing, typography } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'About'>;
 
 export function AboutScreen({ navigation }: Props) {
+  const { gameState } = useGame();
   const openUrl = (url: string) => {
     void Linking.openURL(url);
   };
@@ -31,7 +33,7 @@ export function AboutScreen({ navigation }: Props) {
   };
 
   return (
-    <AppShell>
+    <AppShell bottomNav={gameState ? <GameNavFooter navigation={navigation} active="More" /> : undefined}>
       <SectionCard title={APP_NAME} subtitle={`Version ${APP_VERSION}`}>
         <Text style={styles.studio}>{STUDIO_DISPLAY_NAME}</Text>
         <Text style={styles.tagline}>{APP_TAGLINE}</Text>
@@ -70,7 +72,7 @@ export function AboutScreen({ navigation }: Props) {
       />
 
       <Text style={styles.versionDetails}>
-        Version details: {APP_VERSION} ({APP_BUILD}) · {BUNDLE_ID}
+        Version {APP_VERSION} (build {APP_BUILD})
       </Text>
 
       <GameButton label="BACK" variant="secondary" onPress={() => navigation.goBack()} />
@@ -81,49 +83,42 @@ export function AboutScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   studio: {
     color: palette.text,
-    fontFamily: fonts.body,
-    fontSize: 14,
+    fontSize: typography.body,
     fontWeight: '700',
     marginBottom: spacing.xs,
   },
   tagline: {
     color: palette.neon,
-    fontFamily: fonts.body,
-    fontSize: 13,
+    fontSize: typography.body,
     fontWeight: '700',
     marginBottom: spacing.sm,
   },
   body: {
     color: palette.textSecondary,
-    fontFamily: fonts.body,
-    fontSize: 13,
+    fontSize: typography.body,
     lineHeight: 20,
   },
   bullet: {
     color: palette.textSecondary,
-    fontFamily: fonts.body,
-    fontSize: 13,
+    fontSize: typography.body,
     lineHeight: 22,
   },
   link: {
     color: palette.neon,
-    fontFamily: fonts.body,
-    fontSize: 12,
+    fontSize: typography.caption,
     lineHeight: 18,
     marginTop: spacing.sm,
   },
   disclaimer: {
     color: palette.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 12,
+    fontSize: typography.caption,
     lineHeight: 18,
     fontStyle: 'italic',
   },
   versionDetails: {
     color: palette.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 9,
-    lineHeight: 14,
+    fontSize: typography.caption,
+    lineHeight: 18,
     textAlign: 'center',
     marginBottom: spacing.md,
     marginTop: spacing.xs,

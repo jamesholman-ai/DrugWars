@@ -70,7 +70,7 @@ export function UpgradesScreen({ navigation }: Props) {
           rankProgress={computeRankProgressPercent(gameState)}
         />
       }
-      bottomNav={<GameNavFooter navigation={navigation} active="Progress" />}
+      bottomNav={<GameNavFooter navigation={navigation} active="More" />}
     >
       <View style={styles.moneyRow}>
         <MoneyCard label="Cash" amount={formatMoney(player.cash)} tone="green" icon="💵" />

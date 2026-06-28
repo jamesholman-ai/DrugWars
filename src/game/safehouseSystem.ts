@@ -9,8 +9,12 @@ import { isCityUnlocked } from './progression';
 import { withMessage, withMessages } from './messages';
 import { applyProgressionAfterAction } from './progression';
 import { spendMoney } from './money';
+import { appendFinanceLog } from './financeSystem';
 import { trackMissionEvent } from './missionSystem';
 import { clamp } from '../utils/random';
+import { createDefaultOwnedSafehouseFields, normalizeOwnedSafehouse, migratePropertyUpgrades } from './empireDefaults';
+import { ACTION_FEEDBACK } from './empireFlavorText';
+import { getEffectivePropertyStats, getEffectiveStorageCapacity } from './propertyManagementSystem';
 import { getTemporaryStorageBonus } from './storeInventory';
 
 function rankIndex(rankId: RankId): number {
@@ -167,12 +171,7 @@ export function purchaseSafehouse(state: GameState, safehouseId: string): GameSt
     );
   }
 
-  const owned: OwnedSafehouse = {
-    safehouseId,
-    purchasedDay: player.day,
-    upkeepMissedDays: 0,
-    condition: 100,
-  };
+  const owned = createDefaultOwnedSafehouseFields(safehouseId, player.day);
 
   return applyProgressionAfterAction(
     trackMissionEvent(
@@ -186,7 +185,7 @@ export function purchaseSafehouse(state: GameState, safehouseId: string): GameSt
             [safehouseId]: [],
           },
         },
-        `Purchased ${def.name} for $${def.purchaseCost}. Storage +${def.storageCapacity}. Upkeep $${def.upkeepPerDay}/day.`
+        `${ACTION_FEEDBACK.propertyPurchased(def.name)} Storage +${def.storageCapacity}. Upkeep $${def.upkeepPerDay}/day.`
       ),
       { kind: 'purchase_safehouse' }
     )
@@ -222,10 +221,12 @@ export function depositToSafehouse(
 
   const stored = getStoredInventory(state, safehouseId);
   const used = stored.reduce((s, i) => s + i.quantity, 0);
-  if (used + removed > def.storageCapacity) {
+  const record = (state.ownedSafehouses ?? []).find((o) => o.safehouseId === safehouseId);
+  const capacity = record ? getEffectiveStorageCapacity(state, safehouseId) : def.storageCapacity;
+  if (used + removed > capacity) {
     return withMessage(
       state,
-      `Property full (${used}/${def.storageCapacity}). Withdraw or upgrade elsewhere.`
+      `Property full (${used}/${capacity}). Withdraw or upgrade storage.`
     );
   }
 
@@ -315,6 +316,15 @@ export function tickSafehouseUpkeep(state: GameState): GameState {
       condition: clamp(o.condition + 1, 0, 100),
     }));
     messages.push(`Property upkeep -$${totalUpkeep}.`);
+    return appendFinanceLog(
+      withMessage(
+        { ...state, player: { ...state.player, cash }, ownedSafehouses: nextOwned },
+        messages[0]
+      ),
+      'property_upkeep',
+      totalUpkeep,
+      `Property upkeep −$${totalUpkeep.toLocaleString()}.`
+    );
   } else {
     messages.push(`Could not pay full property upkeep ($${totalUpkeep}).`);
     cash = 0;
@@ -353,12 +363,15 @@ export function migrateOwnedSafehouses(raw: unknown): OwnedSafehouse[] {
     const e = entry as Record<string, unknown>;
     const id = typeof e.safehouseId === 'string' ? e.safehouseId : '';
     if (!SAFEHOUSE_MAP[id]) continue;
-    result.push({
+    result.push(normalizeOwnedSafehouse({
       safehouseId: id,
       purchasedDay: typeof e.purchasedDay === 'number' ? e.purchasedDay : 1,
       upkeepMissedDays: typeof e.upkeepMissedDays === 'number' ? e.upkeepMissedDays : 0,
       condition: typeof e.condition === 'number' ? clamp(e.condition, 20, 100) : 100,
-    });
+      assignedGuardCrewId: typeof e.assignedGuardCrewId === 'string' ? e.assignedGuardCrewId : null,
+      upgradeLevels: migratePropertyUpgrades(e.upgradeLevels),
+      recentEvents: Array.isArray(e.recentEvents) ? e.recentEvents : undefined,
+    }));
   }
   return result;
 }

@@ -5,10 +5,13 @@ export interface TemporaryStorageBoost {
   expiresDay: number;
 }
 
-/** Consumable inventory and timed boosts persisted with the active run. */
+/** Run-scoped timed boosts and per-run flags (wallet credits live in PlayerProfile). */
 export interface StoreInventory {
+  /** @deprecated Migrated to PlayerProfile — kept for save migration only */
   lawyerTokens: number;
+  /** @deprecated Migrated to PlayerProfile */
   intelTips: number;
+  /** @deprecated Migrated to PlayerProfile */
   robberyProtectionTokens: number;
   temporaryStorageBoosts: TemporaryStorageBoost[];
   temporaryPoliceReductionUntilDay: number;

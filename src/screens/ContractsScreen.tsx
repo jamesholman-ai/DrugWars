@@ -51,7 +51,7 @@ export function ContractsScreen({ navigation }: Props) {
           rankProgress={computeRankProgressPercent(gameState)}
         />
       }
-      bottomNav={<GameNavFooter navigation={navigation} active="Contracts" />}
+      bottomNav={<GameNavFooter navigation={navigation} active="Operations" />}
     >
       <View style={styles.moneyRow}>
         <MoneyCard label="Cash" amount={formatMoney(player.cash)} tone="green" icon="💵" />

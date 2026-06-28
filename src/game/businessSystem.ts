@@ -8,9 +8,12 @@ import {
 import { RankId } from '../types/progression';
 import { BUSINESSES, BUSINESS_MAP, BUSINESS_REPAIR_COST } from '../data/businesses';
 import { RANKS } from '../data/progression';
-import { isCityUnlocked } from './progression';
+import { isCityUnlocked, applyProgressionAfterAction } from './progression';
 import { withMessage, withMessages } from './messages';
-import { applyProgressionAfterAction } from './progression';
+import { createDefaultOwnedBusinessFields, normalizeOwnedBusiness, migrateBusinessUpgrades } from './empireDefaults';
+import { ACTION_FEEDBACK } from './empireFlavorText';
+import { getEffectiveBusinessStats, rollBusinessDailyEvents } from './businessManagementSystem';
+import { appendFinanceLog } from './financeSystem';
 import { clamp } from '../utils/random';
 import {
   addCleanMoney,
@@ -69,9 +72,8 @@ export function getOwnedBusinessRecord(
 export function getTotalPassiveIncome(state: GameState): number {
   let total = 0;
   for (const owned of state.ownedBusinesses ?? []) {
-    const def = BUSINESS_MAP[owned.businessId];
-    if (!def || owned.condition <= 0) continue;
-    total += Math.round(def.dailyIncome * conditionMult(owned.condition));
+    if (owned.condition <= 0) continue;
+    total += getEffectiveBusinessStats(state, owned).income;
   }
   return total;
 }
@@ -79,9 +81,8 @@ export function getTotalPassiveIncome(state: GameState): number {
 export function getTotalLaunderingCapacity(state: GameState): number {
   let total = 0;
   for (const owned of state.ownedBusinesses ?? []) {
-    const def = BUSINESS_MAP[owned.businessId];
-    if (!def || owned.condition <= 0) continue;
-    total += Math.round(def.launderingCapacityPerDay * conditionMult(owned.condition));
+    if (owned.condition <= 0) continue;
+    total += getEffectiveBusinessStats(state, owned).launderCap;
   }
   return total;
 }
@@ -89,9 +90,8 @@ export function getTotalLaunderingCapacity(state: GameState): number {
 export function getTotalBusinessUpkeep(state: GameState): number {
   let total = 0;
   for (const owned of state.ownedBusinesses ?? []) {
-    const def = BUSINESS_MAP[owned.businessId];
-    if (!def || owned.condition <= 0) continue;
-    total += def.upkeepPerDay;
+    if (owned.condition <= 0) continue;
+    total += getEffectiveBusinessStats(state, owned).upkeep;
   }
   return total;
 }
@@ -145,12 +145,7 @@ export function purchaseBusiness(state: GameState, businessId: string): GameStat
     );
   }
 
-  const owned: OwnedBusiness = {
-    businessId,
-    purchasedDay: player.day,
-    condition: 100,
-    upkeepMissedDays: 0,
-  };
+  const owned: OwnedBusiness = createDefaultOwnedBusinessFields(businessId, player.day);
 
   const history: BusinessHistoryEntry[] = [
     ...(state.businessHistory ?? []),
@@ -166,7 +161,7 @@ export function purchaseBusiness(state: GameState, businessId: string): GameStat
           ownedBusinesses: [...(state.ownedBusinesses ?? []), owned],
           businessHistory: history,
         },
-        `Acquired ${def.name} for $${def.purchaseCost}. Income $${def.dailyIncome}/day · Launder $${def.launderingCapacityPerDay}/day.`
+        `${ACTION_FEEDBACK.businessPurchased(def.name)} Income $${def.dailyIncome}/day · Launder $${def.launderingCapacityPerDay}/day.`
       ),
       { kind: 'purchase_business' }
     )
@@ -308,8 +303,8 @@ export function tickBusinessesOnDayAdvance(
       continue;
     }
 
-    const mult = conditionMult(record.condition);
-    const upkeep = def.upkeepPerDay;
+    const stats = getEffectiveBusinessStats(state, record);
+    const upkeep = stats.upkeep;
     totalUpkeep += upkeep;
 
     let condition = record.condition;
@@ -328,30 +323,33 @@ export function tickBusinessesOnDayAdvance(
       logLines.push(`${def.name}: upkeep unpaid (−10 condition).`);
     }
 
-    const income = Math.round(def.dailyIncome * mult);
+    const income = stats.income;
     if (income > 0) {
       player = addCleanMoney(player, income);
       totalIncome += income;
     }
 
-    const launderCap = Math.round(def.launderingCapacityPerDay * mult);
+    const launderCap = stats.launderCap;
     if (launderCap > 0 && (player.dirtyCash ?? 0) > 0) {
       const launderAmt = Math.min(launderCap, player.dirtyCash ?? 0);
       player = launderMoney(player, launderAmt);
       totalLaundered += launderAmt;
     }
 
-    const heatDrop = Math.round(def.heatReductionPerDay * mult);
+    const heatDrop = stats.heatDrop;
     if (heatDrop > 0) {
       player = { ...player, heat: clamp(player.heat - heatDrop, 0, 100) };
       totalHeatReduced += heatDrop;
     }
 
-    nextOwned.push({
-      ...record,
-      condition,
-      upkeepMissedDays: missed,
-    });
+    nextOwned.push(
+      normalizeOwnedBusiness({
+        ...record,
+        condition,
+        upkeepMissedDays: missed,
+        heat: clamp((record.heat ?? 12) - 1, 0, 100),
+      })
+    );
   }
 
   let updated: GameState = withStoreInventory(
@@ -396,6 +394,33 @@ export function tickBusinessesOnDayAdvance(
     updated = withMessages(updated, summaryLines);
   }
 
+  updated = rollBusinessDailyEvents(updated, random);
+
+  if (totalIncome > 0) {
+    updated = appendFinanceLog(
+      updated,
+      'business_income',
+      totalIncome,
+      `Business income +$${totalIncome.toLocaleString()} (clean).`
+    );
+  }
+  if (totalUpkeep > 0 && !upkeepCovered) {
+    updated = appendFinanceLog(
+      updated,
+      'business_upkeep',
+      totalUpkeep,
+      `Business upkeep −$${totalUpkeep.toLocaleString()}.`
+    );
+  }
+  if (totalLaundered > 0) {
+    updated = appendFinanceLog(
+      updated,
+      'laundered',
+      totalLaundered,
+      `Laundered $${totalLaundered.toLocaleString()} dirty → clean.`
+    );
+  }
+
   return updated;
 }
 
@@ -435,12 +460,17 @@ export function migrateOwnedBusinesses(raw: unknown): OwnedBusiness[] {
     const e = entry as Record<string, unknown>;
     const id = typeof e.businessId === 'string' ? e.businessId : '';
     if (!BUSINESS_MAP[id]) continue;
-    result.push({
+    result.push(normalizeOwnedBusiness({
       businessId: id,
       purchasedDay: typeof e.purchasedDay === 'number' ? e.purchasedDay : 1,
       condition: typeof e.condition === 'number' ? clamp(e.condition, 0, 100) : 100,
       upkeepMissedDays: typeof e.upkeepMissedDays === 'number' ? e.upkeepMissedDays : 0,
-    });
+      reputation: typeof e.reputation === 'number' ? e.reputation : undefined,
+      heat: typeof e.heat === 'number' ? e.heat : undefined,
+      assignedCrewId: typeof e.assignedCrewId === 'string' ? e.assignedCrewId : null,
+      upgradeLevels: migrateBusinessUpgrades(e.upgradeLevels),
+      recentEvents: Array.isArray(e.recentEvents) ? e.recentEvents : undefined,
+    }));
   }
   return result;
 }

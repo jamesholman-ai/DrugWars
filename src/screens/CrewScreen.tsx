@@ -5,6 +5,7 @@ import { ActionMessage } from '../components/ActionMessage';
 import { GameButton } from '../components/GameButton';
 import { GameNavFooter } from '../components/GameNavFooter';
 import { AppShell, EventBanner, MoneyCard, ScreenHeader, SectionCard } from '../components/ui';
+import { EmptyState, EmpireCrewCard } from '../components/premium';
 import { useGame } from '../game/GameContext';
 import { CREW_ROLE_LABELS } from '../game/crewBonuses';
 import { getDailyPayroll, getHiredCrewCount } from '../game/crewBonuses';
@@ -13,12 +14,12 @@ import { getCurrentRank } from '../game/progression';
 import { RootStackParamList } from '../types/game';
 import { formatMoney } from '../utils/format';
 import { computeRankProgressPercent } from '../utils/rankProgress';
-import { fonts, palette, radius, spacing } from '../theme/theme';
+import { palette, spacing, typography } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Crew'>;
 
 export function CrewScreen({ navigation }: Props) {
-  const { gameState, hireCrew, fireCrew } = useGame();
+  const { gameState, hireCrew } = useGame();
 
   useEffect(() => {
     if (!gameState) navigation.replace('Home');
@@ -37,71 +38,66 @@ export function CrewScreen({ navigation }: Props) {
       header={
         <ScreenHeader
           title="Crew"
+          subtitle="Assignments · loyalty · payroll"
           day={player.day}
           location={getAreaLabel(player.currentCityId, player.currentAreaId)}
           rank={rank.name}
           rankProgress={computeRankProgressPercent(gameState)}
         />
       }
-      bottomNav={<GameNavFooter navigation={navigation} active="Crew" />}
+      bottomNav={<GameNavFooter navigation={navigation} active="Empire" />}
     >
       <View style={styles.moneyRow}>
         <MoneyCard label="Payroll" amount={formatMoney(payroll)} tone="amber" icon="💸" />
-        <MoneyCard label="Crew" amount={String(getHiredCrewCount(gameState))} tone="purple" icon="☷" />
+        <MoneyCard label="Active Crew" amount={String(getHiredCrewCount(gameState))} tone="purple" icon="☷" />
       </View>
 
       <ActionMessage message={lastMessage} />
 
       <EventBanner
-        label="Crew Rules"
-        message="Salaries charge on day advance. Unpaid crew lose loyalty — betrayal and theft possible. Stay or travel to find recruits."
+        label="Empire Crew"
+        message="Assign roles for income, intel, heat control, and protection. Pay on time — unpaid crew crack under stress."
         tone="purple"
       />
 
-      <SectionCard title="Hired Crew" subtitle={`${active.length} active`}>
+      <SectionCard title="Your Crew" subtitle={`${active.length} active · tap for detail`}>
         {active.length === 0 ? (
-          <Text style={styles.empty}>No crew yet. Check recruits below.</Text>
+          <EmptyState
+            icon="☷"
+            title="No crew yet"
+            message="Recruits appear when you travel districts. Hire runners, lookouts, and specialists to grow your empire."
+          />
         ) : (
           active.map((member) => (
-            <View key={member.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.name}>{member.name}</Text>
-                <Text style={styles.role}>{CREW_ROLE_LABELS[member.role]}</Text>
-              </View>
-              <Text style={styles.meta}>
-                Skill {member.skill} · Loyalty {member.loyalty} · ${member.salaryPerDay}/day
-              </Text>
-              <Text style={styles.traits} numberOfLines={1}>
-                {member.riskTraits.join(' · ')}
-              </Text>
-              <GameButton
-                label="FIRE"
-                size="sm"
-                variant="ghost"
-                onPress={() => fireCrew(member.id)}
-                style={styles.fireBtn}
-              />
-            </View>
+            <EmpireCrewCard
+              key={member.id}
+              member={member}
+              onPress={() => navigation.navigate('CrewDetail', { crewId: member.id })}
+            />
           ))
         )}
       </SectionCard>
 
       <SectionCard title="Recruits" subtitle="Local area only">
         {recruits.length === 0 ? (
-          <Text style={styles.empty}>No recruits here. Move districts or advance days.</Text>
+          <EmptyState
+            icon="📋"
+            title="No recruits here"
+            message="Move districts or advance days to refresh local talent."
+          />
         ) : (
           recruits.map((r) => (
-            <View key={r.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.name}>{r.name}</Text>
-                <Text style={styles.cost}>{formatMoney(r.hireCost)}</Text>
+            <View key={r.id} style={styles.recruitCard}>
+              <View style={styles.recruitHeader}>
+                <Text style={styles.recruitName}>{r.name}</Text>
+                <Text style={styles.recruitCost}>{formatMoney(r.hireCost)}</Text>
               </View>
-              <Text style={styles.role}>{CREW_ROLE_LABELS[r.role]}</Text>
-              <Text style={styles.meta}>
+              <Text style={styles.recruitRole}>{CREW_ROLE_LABELS[r.role]}</Text>
+              <Text style={styles.recruitMeta}>
                 Skill {r.skill} · ${r.salaryPerDay}/day · Expires day {r.expiresDay}
               </Text>
               <GameButton
-                label={`HIRE ${r.name.toUpperCase()}`}
+                label={`Hire ${r.name}`}
                 size="sm"
                 disabled={player.isGameOver || player.cash < r.hireCost}
                 onPress={() => hireCrew(r.id)}
@@ -117,27 +113,18 @@ export function CrewScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   moneyRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
-  empty: { color: palette.textMuted, fontSize: 12, lineHeight: 18 },
-  card: {
-    backgroundColor: palette.bgElevated,
-    borderRadius: radius.md,
+  recruitCard: {
+    backgroundColor: palette.bgCard,
+    borderRadius: spacing.md,
     borderWidth: 1,
     borderColor: palette.border,
-    padding: spacing.sm,
+    padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  name: {
-    color: palette.text,
-    fontFamily: fonts.display,
-    fontSize: 14,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  role: { color: palette.purpleBright, fontSize: 10, fontWeight: '700', marginTop: 2 },
-  cost: { color: palette.neon, fontSize: 14, fontWeight: '800' },
-  meta: { color: palette.textMuted, fontSize: 10, marginTop: 4 },
-  traits: { color: palette.textSecondary, fontSize: 9, marginTop: 2 },
-  fireBtn: { marginTop: spacing.sm, marginBottom: 0 },
+  recruitHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  recruitName: { color: palette.text, fontSize: typography.subtitle, fontWeight: '800' },
+  recruitCost: { color: palette.neon, fontSize: typography.subtitle, fontWeight: '800' },
+  recruitRole: { color: palette.purpleBright, fontSize: typography.caption, fontWeight: '700', marginTop: 4 },
+  recruitMeta: { color: palette.textSecondary, fontSize: typography.caption, marginTop: 4 },
   hireBtn: { marginTop: spacing.sm, marginBottom: 0 },
 });

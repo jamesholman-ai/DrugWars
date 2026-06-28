@@ -69,7 +69,7 @@ export function ProgressScreen({ navigation }: Props) {
           rankProgress={rankProgress}
         />
       }
-      bottomNav={<GameNavFooter navigation={navigation} active="Progress" />}
+      bottomNav={<GameNavFooter navigation={navigation} active="More" />}
     >
       <ActionMessage message={gameState.lastMessage} />
 
@@ -87,9 +87,20 @@ export function ProgressScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.moneyRow}>
-        <MoneyCard label="Net Worth" amount={formatMoney(netWorth)} tone="purple" icon="🏦" />
-        <MoneyCard label="Profit" amount={formatMoney(progression.lifetimeProfit)} tone="green" icon="📈" />
+        <Pressable style={styles.financeLink} onPress={() => navigation.navigate('Finance')}>
+          <MoneyCard label="Net Worth" amount={formatMoney(netWorth)} tone="purple" icon="🏦" />
+        </Pressable>
+        <Pressable style={styles.financeLink} onPress={() => navigation.navigate('Finance')}>
+          <MoneyCard label="Profit" amount={formatMoney(progression.lifetimeProfit)} tone="green" icon="📈" />
+        </Pressable>
       </View>
+      <GameButton
+        label="OPEN FINANCE"
+        size="sm"
+        variant="secondary"
+        onPress={() => navigation.navigate('Finance')}
+        style={styles.financeBtn}
+      />
 
       <SectionCard title="Your Rank" tone="purple" subtitle={rank.description}>
         <View style={styles.rankHero}>
@@ -229,6 +240,12 @@ const styles = StyleSheet.create({
   moneyRow: {
     flexDirection: 'row',
     gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  financeLink: {
+    flex: 1,
+  },
+  financeBtn: {
     marginBottom: spacing.md,
   },
   toolsRow: {

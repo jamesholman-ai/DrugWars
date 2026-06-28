@@ -28,9 +28,13 @@ import { COMMODITY_MAP } from '../data/commodities';
 import { AreaId, RootStackParamList } from '../types/game';
 import { isTravelBlocked } from '../game/worldEvents';
 import { getCityUnlockHint, getCurrentRank, isCityUnlocked } from '../game/progression';
+import {
+  AREA_MOVES_BEFORE_DAY_ADVANCE,
+  getAreaMovesToday,
+} from '../game/financeSystem';
 import { getAreaOwnership } from '../game/territory';
 import { computeRankProgressPercent, riskFromModifier } from '../utils/rankProgress';
-import { fonts, palette, spacing } from '../theme/theme';
+import { palette, radius, spacing, typography } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Travel'>;
 
@@ -58,6 +62,7 @@ export function TravelScreen({ navigation }: Props) {
     player.currentAreaId
   );
   const rank = getCurrentRank(gameState);
+  const areaMovesToday = getAreaMovesToday(gameState);
 
   return (
     <>
@@ -71,11 +76,11 @@ export function TravelScreen({ navigation }: Props) {
             rankProgress={computeRankProgressPercent(gameState)}
           />
         }
-        bottomNav={<GameNavFooter navigation={navigation} active="Travel" />}
+        bottomNav={<GameNavFooter navigation={navigation} active="More" />}
         footer={
           <View style={styles.footer}>
             <GameButton
-              label="STAY HERE"
+              label="STAY HERE — advances 1 day"
               size="lg"
               onPress={stay}
               disabled={player.isGameOver}
@@ -85,7 +90,7 @@ export function TravelScreen({ navigation }: Props) {
       >
         <ActionMessage message={lastMessage} />
 
-        <SectionCard title="Current Position" tone="green">
+        <SectionCard title="Current City" tone="green" elevated>
           <Text style={styles.hereCity}>{currentCity?.name ?? player.currentCityId}</Text>
           <Text style={styles.hereArea}>{currentArea?.name ?? player.currentAreaId}</Text>
           {currentArea ? (
@@ -94,12 +99,15 @@ export function TravelScreen({ navigation }: Props) {
         </SectionCard>
 
         <EventBanner
-          label="Travel Rules"
-          message="Move Area: same city, no day advance. Travel City: +1 day & new prices. Stay Here refreshes local prices."
+          label="Travel rules"
+          message="Area moves 1–2: same day. 3rd area move advances the day. City travel always advances the day."
           tone="amber"
         />
 
-        <SectionCard title="A · Move Area" subtitle={`${currentCity?.name ?? 'City'} · same day`}>
+        <SectionCard
+          title="Area Move"
+          subtitle={`Area moves today: ${areaMovesToday} / ${AREA_MOVES_BEFORE_DAY_ADVANCE} · 3rd move advances day`}
+        >
           <View style={styles.areaGrid}>
             {cityAreas.map((area) => {
               const isHere = area.id === player.currentAreaId;
@@ -126,7 +134,7 @@ export function TravelScreen({ navigation }: Props) {
           </View>
         </SectionCard>
 
-        <SectionCard title="B · Travel City" subtitle="Advances day">
+        <SectionCard title="City Travel" subtitle="Advances day · new market prices">
           {CITIES.map((city) => {
             const isHere = city.id === player.currentCityId;
             const cityLocked = !isCityUnlocked(gameState, city.id);
@@ -198,17 +206,13 @@ const styles = StyleSheet.create({
   },
   hereCity: {
     color: palette.neon,
-    fontFamily: fonts.display,
-    fontSize: 20,
+    fontSize: typography.title,
     fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
   },
   hereArea: {
     color: palette.text,
-    fontFamily: fonts.body,
-    fontSize: 14,
-    marginTop: 2,
+    fontSize: typography.body,
+    marginTop: 4,
     marginBottom: spacing.sm,
   },
   areaGrid: {
@@ -222,9 +226,8 @@ const styles = StyleSheet.create({
   },
   lockHint: {
     color: palette.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 9,
-    lineHeight: 13,
+    fontSize: typography.caption,
+    lineHeight: 16,
     marginTop: spacing.sm,
   },
 });

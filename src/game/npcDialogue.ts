@@ -1,6 +1,7 @@
 import { GameState } from '../types/game';
 import { NpcDefinition } from '../types/events';
 import { NPC_MAP } from '../data/npcs';
+import { getReputationFlavor } from '../data/reputationFlavor';
 import { pickRandom } from '../utils/random';
 
 interface DialogueContext {
@@ -96,10 +97,21 @@ export function generateNpcDialogue(
     ];
   }
 
-  return {
-    dialogue: pickFromPool(pool, random),
-    attitude,
-  };
+  const line = pickFromPool(pool, random);
+  const repTag =
+    ctx.reputation >= 80
+      ? getReputationFlavor(ctx.reputation).streetName
+      : ctx.reputation < 25
+        ? 'nobody'
+        : null;
+  const dialogue =
+    repTag && repTag !== 'nobody'
+      ? `[They know you as ${repTag}] ${line}`
+      : repTag === 'nobody'
+        ? `[They don't know you] ${line}`
+        : line;
+
+  return { dialogue, attitude };
 }
 
 export function pickRandomNpcOfType(

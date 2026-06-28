@@ -1,5 +1,6 @@
 import type { CommodityId } from './game';
 import type { RankId } from './progression';
+import type { CrewAssignment, EmpireEventEntry, RiskProfile } from './empire';
 
 export type CrewRole =
   | 'runner'
@@ -66,6 +67,18 @@ export interface HiredCrewMember {
   status: CrewStatus;
   daysUnpaid: number;
   hiredDay: number;
+  /** 0–100 crew mood; drops when unpaid or overworked. */
+  morale?: number;
+  /** 0–100 pressure from risky assignments. */
+  stress?: number;
+  /** Short specialty label (often derived from role). */
+  specialty?: string;
+  riskProfile?: RiskProfile;
+  currentAssignment?: CrewAssignment;
+  /** 0–100 trust bond with the player. */
+  relationshipLevel?: number;
+  recentEvents?: EmpireEventEntry[];
+  personalGoal?: string;
 }
 
 export interface CrewHistoryEntry {

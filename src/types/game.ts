@@ -24,6 +24,7 @@ import {
 } from './missions';
 import { TutorialState } from './tutorial';
 import { StoreInventory } from './store';
+import { FinanceLogEntry } from './finance';
 
 export type WorldEventType =
   | 'market_shortage'
@@ -233,14 +234,29 @@ export interface GameState {
   currentStoryArc?: string | null;
   missionProgress?: MissionProgressFlags;
   activePriceTips?: PriceTip[];
+  /** Unrevealed opportunity intel — hidden until discovered. */
+  hiddenOpportunities?: import('./intel').IntelEntry[];
+  /** Revealed, non-expired intel tips. */
+  activeIntel?: import('./intel').IntelEntry[];
+  /** Expired intel history (limited). */
+  expiredIntel?: import('./intel').IntelEntry[];
+  /** Free reveal tokens earned in-run (IAP tokens live in PlayerProfile). */
+  intelRevealTokens?: number;
   tutorial?: TutorialState;
   heatCooldowns: HeatCooldowns;
   encounterHistory: EncounterHistoryEntry[];
   /** Consumable IAP inventory and timed boosts for the active run. */
   storeInventory?: StoreInventory;
+  /** Area moves within the current day (resets on day advance). */
+  areaMovesToday?: number;
+  /** Game day when areaMovesToday was last updated. */
+  lastAreaMoveDay?: number;
+  /** Recent finance activity (newest first). */
+  financeLog?: FinanceLogEntry[];
 }
 
 export type RootStackParamList = {
+  Title: undefined;
   Home: undefined;
   Game: undefined;
   Market: undefined;
@@ -257,6 +273,14 @@ export type RootStackParamList = {
   Missions: undefined;
   About: undefined;
   Store: undefined;
+  Intel: undefined;
+  Finance: undefined;
+  OperationsDashboard: undefined;
+  EmpireDashboard: undefined;
+  MoreScreen: undefined;
+  CrewDetail: { crewId: string };
+  BusinessDetail: { businessId: string };
+  PropertyDetail: { safehouseId: string };
 };
 
 export function createDefaultHeatCooldowns(): HeatCooldowns {

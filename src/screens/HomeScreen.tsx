@@ -3,14 +3,16 @@ import { ActivityIndicator, Alert, Platform, StyleSheet, Text, View } from 'reac
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { GameButton } from '../components/GameButton';
 import { AppShell, SectionCard } from '../components/ui';
+import { NeonButton } from '../components/premium';
 import { useGame } from '../game/GameContext';
 import { getAreaLabel } from '../data/locations';
 import { GAME_DISCLAIMER } from '../data/commodities';
 import { RootStackParamList } from '../types/game';
 import { formatMoney } from '../utils/format';
-import { APP_VERSION } from '../constants/appInfo';
+import { APP_VERSION, COPYRIGHT_LINE, DEVELOPER_LINE } from '../constants/appInfo';
 import { confirmAction } from '../utils/confirm';
-import { fonts, palette, radius, shadows, spacing } from '../theme/theme';
+import { isDevMockStoreEnabled } from '../services/platformBilling';
+import { palette, radius, spacing, typography } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -22,6 +24,7 @@ export function HomeScreen({ navigation }: Props) {
     startNewGame,
     continueGame,
     resetSave,
+    resetAllData,
   } = useGame();
   const [busy, setBusy] = useState(false);
 
@@ -48,8 +51,8 @@ export function HomeScreen({ navigation }: Props) {
       void (async () => {
         const ok = await confirmAction(
           'Start New Game?',
-          'This will overwrite your saved run.',
-          'New Game'
+        'This overwrites your saved run. Wallet credits and purchases are kept.',
+        'New Game'
         );
         if (ok) {
           await run();
@@ -76,14 +79,31 @@ export function HomeScreen({ navigation }: Props) {
   const handleResetSave = () => {
     void (async () => {
       const ok = await confirmAction(
-        'Reset Save?',
-        'This permanently deletes your saved run from this device. This cannot be undone.',
-        'Reset Save'
+        'Reset Current Run?',
+        'This deletes your saved run only. Wallet credits and purchase history are kept.',
+        'Reset Run'
       );
       if (!ok) return;
       setBusy(true);
       try {
         await resetSave();
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
+  const handleResetAllData = () => {
+    void (async () => {
+      const ok = await confirmAction(
+        'Reset All Local Data?',
+        'This deletes your saved run AND all wallet credits / test purchases. Cannot be undone.',
+        'Reset Everything'
+      );
+      if (!ok) return;
+      setBusy(true);
+      try {
+        await resetAllData();
       } finally {
         setBusy(false);
       }
@@ -97,30 +117,25 @@ export function HomeScreen({ navigation }: Props) {
 
   if (!isStorageReady) {
     return (
-      <AppShell scroll={false}>
+      <AppShell scroll={false} background="hero">
         <View style={styles.loading}>
-          <ActivityIndicator color={palette.neon} />
-          <Text style={styles.loadingText}>Reading local save...</Text>
+          <ActivityIndicator color={palette.neon} size="large" />
+          <Text style={styles.loadingText}>Reading local save…</Text>
         </View>
       </AppShell>
     );
   }
 
   return (
-    <AppShell contentStyle={styles.content}>
-      <View style={styles.hero}>
-        <View style={styles.heroGlowTop} />
-        <Text style={styles.heroTag}>UNDERWORLD TRADING</Text>
-        <Text style={styles.title}>DRUG WARS{'\n'}RELOADED</Text>
-        <Text style={styles.tagline}>Buy low. Move fast. Rule the market.</Text>
-        <Text style={styles.lore}>
-          Hustle across 15 cities and 7 districts. Flip product, dodge heat, pay the loan shark,
-          and chase the biggest score.
-        </Text>
+    <AppShell contentStyle={styles.content} background="hero">
+      <View style={styles.menuHeader}>
+        <Text style={styles.menuEyebrow}>Main Menu</Text>
+        <Text style={styles.menuTitle}>Drug Wars Reloaded</Text>
+        <Text style={styles.menuSubtitle}>Choose your next move.</Text>
       </View>
 
       {savePreview ? (
-        <SectionCard title="Saved Run" tone="green">
+        <SectionCard title="Saved Run" tone="green" elevated>
           <Text style={styles.saveLine}>Day {gameState.player.day}</Text>
           <Text style={styles.saveLine}>{locationName}</Text>
           <Text style={styles.saveLine}>
@@ -134,65 +149,75 @@ export function HomeScreen({ navigation }: Props) {
 
       <View style={styles.actions}>
         {hasSavedGame ? (
-          <GameButton
-            label="CONTINUE GAME"
+          <NeonButton
+            label="Continue Game"
             size="lg"
             icon="↻"
             disabled={busy}
             onPress={() => void handleContinue()}
           />
         ) : null}
-        <GameButton
-          label="NEW GAME"
+        <NeonButton
+          label="New Game"
           size="lg"
           icon="▶"
           variant={hasSavedGame ? 'secondary' : 'primary'}
           disabled={busy}
           onPress={handleNewGame}
         />
+        <NeonButton
+          label="Store"
+          size="md"
+          variant="purple"
+          icon="✦"
+          onPress={() => navigation.navigate('Store')}
+        />
+        <GameButton
+          label="About & Privacy"
+          size="md"
+          variant="ghost"
+          onPress={() => navigation.navigate('About')}
+        />
         {hasSavedGame ? (
-          <GameButton
-            label="RESET SAVE"
-            size="md"
-            variant="danger"
-            disabled={busy}
-            onPress={handleResetSave}
-          />
+          <>
+            <NeonButton
+              label="Reset Run"
+              size="md"
+              variant="danger"
+              disabled={busy}
+              onPress={handleResetSave}
+            />
+            {isDevMockStoreEnabled() ? (
+              <GameButton
+                label="Reset All Data (Dev)"
+                size="md"
+                variant="ghost"
+                disabled={busy}
+                onPress={handleResetAllData}
+              />
+            ) : null}
+          </>
         ) : null}
       </View>
 
-      <SectionCard title="Operator Tips" tone="amber">
-        <TipRow n="01" text="Buy when price is low (▼). Sell when price is high (▲)." />
-        <TipRow n="02" text="Area travel = same day. City travel = next day + interest." />
-        <TipRow n="03" text="Mission rewards on the Hub — claim after First Move." />
-      </SectionCard>
-
-      <GameButton
-        label="ABOUT & PRIVACY"
-        size="sm"
-        variant="ghost"
-        onPress={() => navigation.navigate('About')}
-      />
-
-      <Text style={styles.version}>v{APP_VERSION} · Offline · No account</Text>
+      <View style={styles.footerMeta}>
+        <View style={styles.offlineBadge}>
+          <Text style={styles.offlineText}>Offline · No account</Text>
+        </View>
+        <Text style={styles.version}>v{APP_VERSION}</Text>
+        <Text style={styles.developer}>{DEVELOPER_LINE}</Text>
+        <Text style={styles.copyright}>{COPYRIGHT_LINE}</Text>
+      </View>
 
       <Text style={styles.disclaimer}>{GAME_DISCLAIMER}</Text>
     </AppShell>
   );
 }
 
-function TipRow({ n, text }: { n: string; text: string }) {
-  return (
-    <View style={styles.tipRow}>
-      <Text style={styles.tipNum}>{n}</Text>
-      <Text style={styles.tipText}>{text}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   content: {
     paddingTop: spacing.lg,
+    flexGrow: 1,
   },
   loading: {
     flex: 1,
@@ -202,107 +227,85 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: palette.textSecondary,
-    fontFamily: fonts.body,
-    fontSize: 12,
+    fontSize: typography.body,
   },
-  hero: {
-    backgroundColor: palette.bgCard,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: palette.neonDim,
-    padding: spacing.lg,
+  menuHeader: {
     marginBottom: spacing.lg,
-    overflow: 'hidden',
-    ...shadows.glowGreen,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: palette.border,
   },
-  heroGlowTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: palette.neon,
-    opacity: 0.7,
+  menuEyebrow: {
+    color: palette.cyan,
+    fontSize: typography.caption,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
   },
-  heroTag: {
-    color: palette.amber,
-    fontFamily: fonts.display,
-    fontSize: 9,
-    letterSpacing: 2,
-    marginBottom: spacing.sm,
-    fontWeight: '800',
-  },
-  title: {
-    color: palette.neon,
-    fontFamily: fonts.display,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
-    letterSpacing: 2,
-  },
-  tagline: {
+  menuTitle: {
     color: palette.text,
-    fontFamily: fonts.body,
-    fontSize: 14,
-    marginTop: spacing.sm,
-    fontWeight: '600',
+    fontSize: typography.hero,
+    fontWeight: '900',
   },
-  lore: {
+  menuSubtitle: {
     color: palette.textSecondary,
-    fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: spacing.md,
+    fontSize: typography.body,
+    marginTop: spacing.xs,
   },
   saveLine: {
     color: palette.text,
-    fontFamily: fonts.body,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: typography.body,
+    lineHeight: 22,
   },
   saveOver: {
-    color: palette.amber,
-    fontFamily: fonts.body,
-    fontSize: 11,
+    color: palette.gold,
+    fontSize: typography.caption,
     marginTop: spacing.sm,
   },
   actions: {
     marginBottom: spacing.lg,
     gap: spacing.sm,
   },
-  tipRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
+  footerMeta: {
+    alignItems: 'center',
+    marginTop: spacing.md,
+    gap: spacing.xs,
   },
-  tipNum: {
-    color: palette.cyan,
-    fontFamily: fonts.body,
-    fontSize: 10,
-    fontWeight: '700',
-    width: 22,
+  offlineBadge: {
+    backgroundColor: palette.bgCard,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    marginBottom: spacing.xs,
   },
-  tipText: {
-    flex: 1,
+  offlineText: {
     color: palette.textSecondary,
-    fontFamily: fonts.body,
-    fontSize: 11,
+    fontSize: typography.caption,
+    fontWeight: '600',
+  },
+  version: {
+    color: palette.textMuted,
+    fontSize: typography.caption,
+  },
+  developer: {
+    color: palette.textSecondary,
+    fontSize: typography.caption,
+    textAlign: 'center',
+  },
+  copyright: {
+    color: palette.textMuted,
+    fontSize: typography.caption,
+    textAlign: 'center',
     lineHeight: 16,
   },
   disclaimer: {
     color: palette.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 9,
-    lineHeight: 14,
-    marginTop: spacing.md,
-    fontStyle: 'italic',
-  },
-  version: {
-    color: palette.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 10,
+    fontSize: typography.caption,
+    lineHeight: 18,
+    marginTop: spacing.lg,
     textAlign: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
+    fontStyle: 'italic',
   },
 });

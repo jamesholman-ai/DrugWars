@@ -2,7 +2,7 @@
 
 **Developer:** AIventure Studios  
 **Website:** https://www.aiventure-studios.com  
-**Support:** support@aiventure-studios.com  
+**Support:** contact@aiventure-studios.com  
 **Privacy:** https://www.aiventure-studios.com/drugwars-reloaded/privacy
 
 Use this document when filling out App Store Connect and Google Play Console listings.
@@ -28,10 +28,11 @@ Travel across 15 cities and dozens of districts. Buy and sell product when price
 - Suppliers, contracts, crew, properties, and businesses
 - Choice-based street encounters and world events
 - Local save on your device — reset anytime
-- Optional consumable in-app purchases (7 categories, tiered packs — no loot boxes)
 
 **Important**
 This is a work of fiction. It does not provide real-world instructions for illegal activity. For mature audiences.
+
+**Version 1.0.0 note:** In-app purchases are **not enabled** in this release. The base game is fully playable without purchases.
 
 ## Keywords (App Store — comma-separated)
 
@@ -43,12 +44,12 @@ New run, new hustle. Day 1 demand surges, story missions, and a full empire loop
 
 ## Screenshot captions
 
-1. **Home screen** — "Start a new run or continue your saved empire."
-2. **Hub** — "Track cash, debt, missions, and world events at a glance."
-3. **Market** — "Buy low and sell high with live price trends."
-4. **Travel** — "Move between districts and cities — each with unique risk."
-5. **Missions** — "Story arcs and daily objectives guide your next move."
-6. **Status** — "Manage heat, rank up, and unlock new cities."
+1. **Title screen** — "Enter the neon underworld."
+2. **Home screen** — "Start a new run or continue your saved empire."
+3. **Hub** — "Track cash, debt, missions, and world events at a glance."
+4. **Market** — "Buy low and sell high with live price trends."
+5. **Travel** — "Move between districts and cities — each with unique risk."
+6. **Missions** — "Story arcs and daily objectives guide your next move."
 7. **Properties & Businesses** — "Store product off the street and build passive income."
 8. **About & Privacy** — "Offline. No account. No tracking."
 
@@ -60,13 +61,13 @@ New run, new hustle. Day 1 demand surges, story missions, and a full empire loop
 - No real-money gambling
 - No user-generated content
 - No online multiplayer
-- Optional in-app purchases (fixed consumables and non-consumable supporter unlocks — disclose in store listing when enabled)
+- **No in-app purchases in version 1.0.0** (optional consumables planned for a future update)
 
 See `CONTENT_RATING_NOTES.md` for questionnaire guidance.
 
-## In-app purchases (consumables — when enabled)
+## In-app purchases (future — not live in v1.0.0)
 
-All products available Day 1. Fixed contents only — no loot boxes or random rewards.
+When billing is enabled in a future update, the store will offer optional consumable packs (fixed contents, no loot boxes):
 
 | Category | Products | Price range |
 |----------|----------|-------------|
@@ -78,4 +79,4 @@ All products available Day 1. Fixed contents only — no loot boxes or random re
 | Crew Loyalty | Small / Medium / Large | $0.99 – $4.99 |
 | Business Recovery | Small / Medium / Large | $0.99 – $4.99 |
 
-Payments processed by Apple/Google when billing is live. Optional — base game fully playable without purchases.
+Payments will be processed by Apple/Google. Until then, do **not** mark IAP as active in Play Console or App Store Connect.

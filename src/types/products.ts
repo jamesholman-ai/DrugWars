@@ -63,5 +63,12 @@ export interface EntitlementState {
 }
 
 export type PurchaseResult =
-  | { ok: true; productId?: ProductId; localDev?: boolean; restoredIds?: ProductId[] }
+  | {
+      ok: true;
+      productId?: ProductId;
+      localDev?: boolean;
+      restoredIds?: ProductId[];
+      transactionId?: string;
+      platform?: 'apple' | 'google' | 'local_dev';
+    }
   | { ok: false; error: string; code?: 'billing_unavailable' | 'cancelled' | 'already_used' | 'unknown' };

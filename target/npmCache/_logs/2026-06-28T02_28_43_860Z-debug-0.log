@@ -1,0 +1,26 @@
+0 verbose cli /usr/local/bin/node /usr/local/bin/npm
+1 info using npm@11.13.0
+2 info using node@v24.17.0
+3 silly config load:file:/usr/local/lib/node_modules/npm/npmrc
+4 silly config load:file:/Users/jamesholman/GitHub/DrugWars/.npmrc
+5 silly config load:file:/Users/jamesholman/.npmrc
+6 silly config load:file:/usr/local/etc/npmrc
+7 verbose title npm explain @expo/vector-icons
+8 verbose argv "explain" "@expo/vector-icons" "--json"
+9 verbose logfile logs-max:10 dir:/Users/jamesholman/GitHub/DrugWars/target/npmCache/_logs/2026-06-28T02_28_43_860Z-
+10 verbose logfile /Users/jamesholman/GitHub/DrugWars/target/npmCache/_logs/2026-06-28T02_28_43_860Z-debug-0.log
+11 silly logfile start cleaning logs, removing 3 files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 silly logfile done cleaning log files
+14 verbose stack Error: No dependencies found matching @expo/vector-icons
+14 verbose stack     at Explain.exec (/usr/local/lib/node_modules/npm/lib/commands/explain.js:56:13)
+14 verbose stack     at async Npm.exec (/usr/local/lib/node_modules/npm/lib/npm.js:193:9)
+14 verbose stack     at async module.exports (/usr/local/lib/node_modules/npm/lib/cli/entry.js:67:5)
+15 error No dependencies found matching @expo/vector-icons
+16 verbose cwd /Users/jamesholman/GitHub/DrugWars
+17 verbose os Darwin 21.6.0
+18 verbose node v24.17.0
+19 verbose npm  v11.13.0
+20 verbose exit 1
+21 verbose code 1
+22 error A complete log of this run can be found in: /Users/jamesholman/GitHub/DrugWars/target/npmCache/_logs/2026-06-28T02_28_43_860Z-debug-0.log

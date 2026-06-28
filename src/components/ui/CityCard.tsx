@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { fonts, palette, radius, spacing } from '../../theme/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { palette, radius, spacing, typography } from '../../theme/theme';
 import { WorldEventBadge } from './WorldEventBadge';
 
 interface CityCardProps {
@@ -15,6 +16,12 @@ interface CityCardProps {
   onTravel?: () => void;
   expanded?: boolean;
 }
+
+const RISK_HEADER: Record<CityCardProps['riskLevel'], readonly [string, string]> = {
+  low: ['rgba(53,255,136,0.15)', 'rgba(16,19,26,0.98)'],
+  medium: ['rgba(255,184,77,0.15)', 'rgba(16,19,26,0.98)'],
+  high: ['rgba(255,59,79,0.15)', 'rgba(16,19,26,0.98)'],
+};
 
 export function CityCard({
   name,
@@ -34,37 +41,37 @@ export function CityCard({
       onPress={onPress}
       disabled={isLocked}
     >
-      <View style={styles.headerGradient}>
+      <LinearGradient colors={[...RISK_HEADER[riskLevel]]} style={styles.headerGradient}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <Text style={styles.cityName}>{name}</Text>
-            {isCurrent ? <Text style={styles.currentTag}>HERE</Text> : null}
+            {isCurrent ? <Text style={styles.currentTag}>Here</Text> : null}
           </View>
           <WorldEventBadge severity={riskLevel} />
         </View>
         <View style={styles.costRow}>
-          <Text style={styles.costLabel}>TRAVEL</Text>
+          <Text style={styles.costLabel}>Travel cost</Text>
           <Text style={styles.costValue}>${travelCost.toLocaleString()}</Text>
         </View>
-      </View>
+      </LinearGradient>
 
       {expanded ? (
         <View style={styles.body}>
-          <View style={styles.drugSection}>
-            <Text style={styles.sectionLabel}>SPECIALTY (CHEAP)</Text>
-            <Text style={styles.drugList} numberOfLines={2}>
+          <View style={styles.intelChip}>
+            <Text style={styles.intelLabel}>Cheap here</Text>
+            <Text style={styles.intelValue} numberOfLines={2}>
               {specialtyDrugs.length ? specialtyDrugs.join(' · ') : '—'}
             </Text>
           </View>
-          <View style={styles.drugSection}>
-            <Text style={[styles.sectionLabel, styles.demandLabel]}>DEMAND (EXPENSIVE)</Text>
-            <Text style={styles.drugList} numberOfLines={2}>
+          <View style={[styles.intelChip, styles.demandChip]}>
+            <Text style={[styles.intelLabel, styles.demandLabel]}>High demand</Text>
+            <Text style={styles.intelValue} numberOfLines={2}>
               {demandDrugs.length ? demandDrugs.join(' · ') : '—'}
             </Text>
           </View>
           {onTravel && !isCurrent && !isLocked ? (
             <Pressable style={styles.travelBtn} onPress={onTravel}>
-              <Text style={styles.travelBtnText}>TRAVEL TO {name.toUpperCase()}</Text>
+              <Text style={styles.travelBtnText}>Travel to {name}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -84,7 +91,7 @@ export function CityCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: palette.border,
     overflow: 'hidden',
@@ -99,7 +106,6 @@ const styles = StyleSheet.create({
   },
   headerGradient: {
     padding: spacing.md,
-    backgroundColor: '#14141f',
     borderBottomWidth: 1,
     borderBottomColor: palette.border,
   },
@@ -118,22 +124,18 @@ const styles = StyleSheet.create({
   },
   cityName: {
     color: palette.text,
-    fontFamily: fonts.display,
-    fontSize: 16,
+    fontSize: typography.subtitle,
     fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
     flexShrink: 1,
   },
   currentTag: {
     color: palette.neon,
-    fontSize: 9,
+    fontSize: typography.caption,
     fontWeight: '800',
     backgroundColor: palette.neonSoft,
-    borderRadius: radius.sm,
-    paddingHorizontal: 6,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    overflow: 'hidden',
   },
   costRow: {
     flexDirection: 'row',
@@ -142,61 +144,64 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   costLabel: {
-    color: palette.textMuted,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
+    color: palette.textSecondary,
+    fontSize: typography.caption,
+    fontWeight: '600',
   },
   costValue: {
     color: palette.neon,
-    fontSize: 14,
+    fontSize: typography.subtitle,
     fontWeight: '800',
   },
   body: {
     padding: spacing.md,
-    paddingTop: spacing.sm,
     gap: spacing.sm,
   },
-  drugSection: {
-    gap: 2,
+  intelChip: {
+    backgroundColor: palette.bgCardHover,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: radius.lg,
+    padding: spacing.sm,
   },
-  sectionLabel: {
+  demandChip: {
+    borderColor: palette.dangerDim,
+  },
+  intelLabel: {
     color: palette.neon,
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontSize: typography.caption,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   demandLabel: {
     color: palette.danger,
   },
-  drugList: {
+  intelValue: {
     color: palette.textSecondary,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: typography.caption,
+    lineHeight: 18,
   },
   travelBtn: {
     backgroundColor: palette.neonSoft,
     borderWidth: 1,
     borderColor: palette.neonDim,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     paddingVertical: spacing.md,
     alignItems: 'center',
     marginTop: spacing.xs,
   },
   travelBtnText: {
     color: palette.neon,
-    fontFamily: fonts.display,
-    fontSize: 12,
+    fontSize: typography.body,
     fontWeight: '800',
-    letterSpacing: 1.5,
   },
   compactRow: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    gap: 2,
+    paddingVertical: spacing.sm,
+    gap: 4,
   },
   compactMeta: {
-    color: palette.textMuted,
-    fontSize: 10,
+    color: palette.textSecondary,
+    fontSize: typography.caption,
   },
 });
