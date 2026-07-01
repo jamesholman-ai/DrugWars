@@ -39,3 +39,5 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+/target/npmCache
+target/npmCache/_npx/c15e4b19a90d9797/package-lock.json
