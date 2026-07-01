@@ -31,7 +31,7 @@ jobs:
         run: npm ci
 
       - name: TypeScript check
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Expo Doctor
         run: npx expo-doctor
@@ -39,7 +39,7 @@ jobs:
       - name: Run financeSmokeTest
         run: |
           if [ -f src/game/financeSmokeTest.ts ]; then
-            npx ts-node --compiler-options '{"module":"CommonJS"}' src/game/financeSmokeTest.ts
+            npx tsx src/game/financeSmokeTest.ts
           else
             echo "src/game/financeSmokeTest.ts not found — skipping"
           fi
@@ -47,7 +47,7 @@ jobs:
       - name: Run empireSmokeTest
         run: |
           if [ -f src/game/empireSmokeTest.ts ]; then
-            npx ts-node --compiler-options '{"module":"CommonJS"}' src/game/empireSmokeTest.ts
+            npx tsx src/game/empireSmokeTest.ts
           else
             echo "src/game/empireSmokeTest.ts not found — skipping"
           fi
@@ -55,7 +55,7 @@ jobs:
       - name: Run empireEdgeCaseTest
         run: |
           if [ -f src/game/empireEdgeCaseTest.ts ]; then
-            npx ts-node --compiler-options '{"module":"CommonJS"}' src/game/empireEdgeCaseTest.ts
+            npx tsx src/game/empireEdgeCaseTest.ts
           else
             echo "src/game/empireEdgeCaseTest.ts not found — skipping"
           fi
