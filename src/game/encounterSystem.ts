@@ -101,23 +101,28 @@ export function buildEncounterEvent(
 ): GameEvent {
   const areaKey = getPlayerAreaKey(state.player);
 
-  const choices = encounter.choices
-    .filter((c) => {
-      if (c.minCash != null && state.player.cash < c.minCash) return false;
-      if (c.requiresEquipment && !state.equipment?.some((e) => e.equipmentId === c.requiresEquipment)) {
-        return false;
-      }
-      return true;
-    })
-    .map((c) => ({
+  const choices = encounter.choices.map((c) => {
+    let lockedReason: string | undefined;
+    if (c.minCash != null && state.player.cash < c.minCash) {
+      lockedReason = `Need $${c.minCash} cash`;
+    } else if (
+      c.requiresEquipment &&
+      !state.equipment?.some((e) => e.equipmentId === c.requiresEquipment)
+    ) {
+      lockedReason = 'Requires special equipment';
+    }
+    return {
       id: `enc:${encounter.id}:${c.id}`,
       label: c.label,
-    }));
+      lockedReason,
+    };
+  });
 
   if (choices.length === 0) {
     choices.push({
       id: `enc:${encounter.id}:talk`,
       label: 'Talk your way out',
+      lockedReason: undefined,
     });
   }
 

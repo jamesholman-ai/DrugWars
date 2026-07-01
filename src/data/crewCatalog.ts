@@ -52,7 +52,7 @@ function t(
 
 export const CREW_TEMPLATES: CrewTemplate[] = [
   // Early — NY / Miami / Atlanta
-  t('crew_ny_runner_tee', 'Little Tee', 'runner', 'new_york', 'new_york_harlem', 42, 70, 550,
+  t('crew_ny_runner_tee', 'Little Tee', 'runner', 'new_york', 'new_york_brooklyn', 42, 70, 550,
     { carryCapacity: 15 }, ['Fast', 'Talkative'], {}),
   t('crew_ny_lookout_jax', 'Jax', 'lookout', 'new_york', 'new_york_brooklyn', 38, 75, 650,
     { policeEncounterReduction: 0.08 }, ['Paranoid'], {}),
@@ -74,13 +74,13 @@ export const CREW_TEMPLATES: CrewTemplate[] = [
   // Late
   t('crew_ny_fixer_silk', 'Silk', 'fixer', 'new_york', 'new_york_downtown', 72, 320, 5500,
     { heatReductionBonus: 3, bribeBonus: 0.1 }, ['City hall ties'], { minRank: 'plug', minReputation: 45 }),
-  t('crew_la_smuggler_jet', 'Jetstream', 'smuggler', 'los_angeles', 'los_angeles_port', 68, 280, 4800,
+  t('crew_la_smuggler_jet', 'Jetstream', 'smuggler', 'los_angeles', 'los_angeles_harbor', 68, 280, 4800,
     { travelRiskReduction: 0.18 }, ['Customs bribes'], { minRank: 'plug' }),
   t('crew_ny_accountant_ledger', 'Ledger', 'accountant', 'new_york', 'new_york_downtown', 70, 350, 6000,
     { debtInterestReduction: 0.15 }, ['Clean books'], { minRank: 'shot_caller', minReputation: 55 }),
   t('crew_london_fixer_cheshire', 'Cheshire', 'fixer', 'london', 'london_central', 75, 400, 8000,
     { heatReductionBonus: 4, bribeBonus: 0.12 }, ['Old money'], { minRank: 'kingpin' }),
-  t('crew_miami_dealer_boss', 'Boss Lady', 'dealer', 'miami', 'miami_beach_district', 65, 220, 3500,
+  t('crew_miami_dealer_boss', 'Boss Lady', 'dealer', 'miami', 'miami_south_beach', 65, 220, 3500,
     { salePriceBonus: 0.08, contractPayoutBonus: 0.08 }, ['VIP list'], { minRank: 'shot_caller' }),
 ];
 
@@ -88,8 +88,12 @@ export const CREW_TEMPLATE_MAP = Object.fromEntries(
   CREW_TEMPLATES.map((c) => [c.id, c])
 ) as Record<string, CrewTemplate>;
 
-export const MAX_CREW_RECRUITS = 5;
-export const MAX_HIRED_CREW = 6;
+import { BALANCE } from '../data/balanceConfig';
+
+/** @deprecated Use getMaxHiredCrew(state) from rankBenefits */
+export const MAX_HIRED_CREW = 10;
+/** Visible recruits cap — actual count comes from rank benefits. */
+export const MAX_CREW_RECRUITS = 25;
 
 export function templateToOffer(template: CrewTemplate, day: number): CrewRecruitOffer {
   return {

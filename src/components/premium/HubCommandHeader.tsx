@@ -5,7 +5,7 @@ import { getCityAmbient } from '../../data/cityAmbient';
 import { CITY_MAP } from '../../data/locations';
 import { AREA_MAP } from '../../data/areas';
 import { accentMap, palette, radius, spacing, textStyles, typography } from '../../theme/theme';
-import { AppIcons } from '../../theme/icons';
+import { AppIcon, AppIcons } from '../../theme/icons';
 
 interface HubCommandHeaderProps {
   cityId: string;
@@ -43,9 +43,10 @@ function HubCommandHeaderInner({ cityId, areaId, day, rankName }: HubCommandHead
       </View>
       <View style={styles.footer}>
         <Text style={styles.tagline}>{ambient.tagline}</Text>
-        <Text style={styles.rank}>
-          {AppIcons.rank} {rankName}
-        </Text>
+        <View style={styles.rankRow}>
+          <AppIcon name={AppIcons.rank} size={14} color={palette.gold} />
+          <Text style={styles.rank}>{rankName}</Text>
+        </View>
       </View>
       <Text style={styles.weather}>Weather: clear · ops nominal</Text>
     </View>
@@ -108,6 +109,11 @@ const styles = StyleSheet.create({
     ...textStyles.caption,
     flex: 1,
     marginRight: spacing.sm,
+  },
+  rankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   rank: {
     color: palette.gold,

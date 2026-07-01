@@ -2,6 +2,7 @@ import { GameState } from '../types/game';
 import { OwnedSafehouse } from '../types/safehouses';
 import { PropertyUpgradeKind } from '../types/empire';
 import { SAFEHOUSE_MAP } from '../data/safehouses';
+import { getPropertyDef } from './propertyPoolSystem';
 import {
   getPropertyUpgradeCost,
   PROPERTY_UPGRADE_LABELS,
@@ -24,7 +25,7 @@ export function getPropertyRecord(state: GameState, safehouseId: string): OwnedS
 }
 
 export function getEffectivePropertyStats(state: GameState, record: OwnedSafehouse) {
-  const def = SAFEHOUSE_MAP[record.safehouseId];
+  const def = getPropertyDef(state, record.safehouseId) ?? SAFEHOUSE_MAP[record.safehouseId];
   if (!def) {
     return {
       storageCapacity: 0,
@@ -60,16 +61,33 @@ export function getEffectivePropertyStats(state: GameState, record: OwnedSafehou
       0,
       0.65
     ),
-    comfortLevel: upgrades.safeRoom + upgrades.cleanerCrew,
-    securityLevel: upgrades.locks + upgrades.surveillance,
-    secrecyLevel: upgrades.hiddenCompartments + upgrades.escapeRoute,
+    comfortLevel: clamp(
+      (record.comfortLevel ?? def.comfortLevel) + upgrades.safeRoom * 8 + upgrades.cleanerCrew * 5,
+      0,
+      100
+    ),
+    securityLevel: clamp(
+      (record.securityLevel ?? def.securityLevel) +
+        upgrades.locks * 8 +
+        upgrades.surveillance * 6 +
+        (guard ? guard.skill / 8 : 0),
+      0,
+      100
+    ),
+    secrecyLevel: clamp(
+      (record.secrecyLevel ?? def.secrecyLevel) +
+        upgrades.hiddenCompartments * 5 +
+        upgrades.escapeRoute * 4,
+      0,
+      100
+    ),
     conditionMult,
   };
 }
 
 export function getEffectiveStorageCapacity(state: GameState, safehouseId: string): number {
   const record = getPropertyRecord(state, safehouseId);
-  const def = SAFEHOUSE_MAP[safehouseId];
+  const def = getPropertyDef(state, safehouseId) ?? SAFEHOUSE_MAP[safehouseId];
   if (!record || !def) return def?.storageCapacity ?? 0;
   return getEffectivePropertyStats(state, record).storageCapacity;
 }
@@ -80,7 +98,7 @@ export function upgradeProperty(
   kind: PropertyUpgradeKind
 ): GameState {
   const record = getPropertyRecord(state, safehouseId);
-  const def = SAFEHOUSE_MAP[safehouseId];
+  const def = getPropertyDef(state, safehouseId) ?? SAFEHOUSE_MAP[safehouseId];
   if (!record || !def) return withMessage(state, 'Property not found.');
 
   const upgrades = migratePropertyUpgrades(record.upgradeLevels);
@@ -136,7 +154,7 @@ export function assignPropertyGuard(
 
 export function layLowAtProperty(state: GameState, safehouseId: string): GameState {
   const record = getPropertyRecord(state, safehouseId);
-  const def = SAFEHOUSE_MAP[safehouseId];
+  const def = getPropertyDef(state, safehouseId) ?? SAFEHOUSE_MAP[safehouseId];
   if (!record || !def) return withMessage(state, 'Property not found.');
   const stats = getEffectivePropertyStats(state, record);
   const drop = Math.round(10 + stats.heatReduction + stats.comfortLevel);
@@ -175,13 +193,13 @@ export function rollPropertyDailyEvents(
   const messages: string[] = [];
 
   for (const record of owned) {
-    const def = SAFEHOUSE_MAP[record.safehouseId];
+    const def = getPropertyDef(updated, record.safehouseId) ?? SAFEHOUSE_MAP[record.safehouseId];
     if (!def) continue;
     const stats = getEffectivePropertyStats(updated, record);
     const guard = getAssignedGuardForProperty(updated, record.safehouseId);
     const roll = random();
 
-    if (roll < 0.05 && stats.secrecyLevel < 2) {
+    if (roll < 0.05 && stats.secrecyLevel < 35) {
       messages.push(`Neighbor suspicion at ${def.name}.`);
       updated = patchProperty(updated, record.safehouseId, {
         recentEvents: appendEmpireEvent(record.recentEvents, state.player.day, 'Neighbors noticed odd traffic.', 'bad'),
@@ -203,11 +221,11 @@ export function rollPropertyDailyEvents(
           'good'
         ),
       });
-    } else if (stats.secrecyLevel >= 2 && roll < 0.08) {
+    } else if (stats.secrecyLevel >= 35 && roll < 0.08) {
       updated = patchProperty(updated, record.safehouseId, {
         recentEvents: appendEmpireEvent(record.recentEvents, state.player.day, 'Surveillance flagged police movement early.', 'good'),
       });
-    } else if (stats.comfortLevel >= 2 && roll < 0.07) {
+    } else if (stats.comfortLevel >= 35 && roll < 0.07) {
       updated = {
         ...updated,
         player: {
@@ -243,20 +261,27 @@ function patchProperty(
 export function getPropertyPortfolioSummary(state: GameState) {
   let storage = 0;
   let security = 0;
+  let rent = 0;
   let upkeep = 0;
   for (const record of state.ownedSafehouses ?? []) {
-    const def = SAFEHOUSE_MAP[record.safehouseId];
+    const def = getPropertyDef(state, record.safehouseId) ?? SAFEHOUSE_MAP[record.safehouseId];
     if (!def) continue;
     const stats = getEffectivePropertyStats(state, record);
     storage += stats.storageCapacity;
     security += stats.securityLevel;
-    upkeep += def.upkeepPerDay;
+    if (record.rentOrOwn === 'rent') {
+      rent += def.rentPerDay > 0 ? def.rentPerDay : 45;
+    } else {
+      upkeep += def.upkeepPerDay;
+    }
   }
   const count = (state.ownedSafehouses ?? []).length;
   return {
     count,
     storage,
     avgSecurity: count ? Math.round(security / count) : 0,
+    rent,
     upkeep,
+    dailyCost: rent + upkeep,
   };
 }

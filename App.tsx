@@ -29,6 +29,7 @@ import { MoreScreen } from './src/screens/MoreScreen';
 import { CrewDetailScreen } from './src/screens/CrewDetailScreen';
 import { BusinessDetailScreen } from './src/screens/BusinessDetailScreen';
 import { PropertyDetailScreen } from './src/screens/PropertyDetailScreen';
+import { LocationIntroScreen } from './src/screens/LocationIntroScreen';
 import { RootStackParamList } from './src/types/game';
 import { palette } from './src/theme/theme';
 import { StoreProvider } from './src/context/StoreContext';
@@ -87,6 +88,7 @@ export default function App() {
               <Stack.Screen name="MoreScreen" component={MoreScreen} options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="CrewDetail" component={CrewDetailScreen} options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="BusinessDetail" component={BusinessDetailScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="LocationIntro" component={LocationIntroScreen} options={{ animation: 'fade', animationDuration: 400 }} />
               <Stack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={{ animation: 'slide_from_right' }} />
             </Stack.Navigator>
           </NavigationContainer>

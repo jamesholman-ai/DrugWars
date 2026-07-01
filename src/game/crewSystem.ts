@@ -8,10 +8,13 @@ import { RankId } from '../types/progression';
 import {
   CREW_TEMPLATES,
   CREW_TEMPLATE_MAP,
-  MAX_CREW_RECRUITS,
-  MAX_HIRED_CREW,
   templateToOffer,
 } from '../data/crewCatalog';
+import { getMaxHiredCrew } from '../data/rankBenefits';
+import {
+  buildCrewOffersFromListing,
+  refreshCrewListing,
+} from './crewPoolSystem';
 import { RANKS } from '../data/progression';
 import { isCityUnlocked } from './progression';
 import { withMessage, withMessages } from './messages';
@@ -45,33 +48,42 @@ function meetsRecruitUnlock(state: GameState, offer: CrewRecruitOffer): boolean 
 
 export function refreshCrewRecruits(state: GameState): GameState {
   const { player } = state;
-  const hiredIds = new Set((state.hiredCrew ?? []).map((c) => c.templateId));
-  let offers = (state.availableCrew ?? []).filter(
-    (o) => o.expiresDay > player.day && !hiredIds.has(o.templateId)
-  );
+  let updated = refreshCrewListing(state, { force: false });
+  const key = `${player.currentCityId}:${player.currentAreaId}`;
+  const listing = updated.districtCrewListings?.[key];
+  const hiredIds = new Set((updated.hiredCrew ?? []).map((c) => c.templateId));
 
-  if (offers.length >= MAX_CREW_RECRUITS) {
-    return { ...state, availableCrew: offers };
-  }
-
-  const localTemplates = CREW_TEMPLATES.filter(
+  const staticTemplates = CREW_TEMPLATES.filter(
     (t) =>
       t.cityId === player.currentCityId &&
       t.areaId === player.currentAreaId &&
       !hiredIds.has(t.id)
   );
 
-  for (const template of localTemplates) {
-    if (offers.length >= MAX_CREW_RECRUITS) break;
-    if (offers.some((o) => o.templateId === template.id)) continue;
-    if (Math.random() > 0.4) continue;
+  const generatedOffers = listing
+    ? buildCrewOffersFromListing(updated, listing.visibleIds)
+    : [];
 
-    const offer = templateToOffer(template, player.day);
-    if (!meetsRecruitUnlock(state, offer)) continue;
+  const offers: CrewRecruitOffer[] = [];
+  const usedTemplateIds = new Set<string>();
+
+  for (const template of staticTemplates) {
+    if (!meetsRecruitUnlock(updated, templateToOffer(template, player.day))) continue;
+    if (usedTemplateIds.has(template.id)) continue;
+    usedTemplateIds.add(template.id);
+    offers.push(templateToOffer(template, player.day));
+  }
+
+  for (const offer of generatedOffers) {
+    if (hiredIds.has(offer.templateId)) continue;
+    if (usedTemplateIds.has(offer.templateId)) continue;
+    if (offer.expiresDay <= player.day) continue;
+    if (!meetsRecruitUnlock(updated, offer)) continue;
+    usedTemplateIds.add(offer.templateId);
     offers.push(offer);
   }
 
-  return { ...state, availableCrew: offers };
+  return { ...updated, availableCrew: offers };
 }
 
 export function hireCrewMember(state: GameState, recruitId: string): GameState {
@@ -79,8 +91,9 @@ export function hireCrewMember(state: GameState, recruitId: string): GameState {
   if (!offer) return withMessage(state, 'Recruit not found.');
 
   const active = (state.hiredCrew ?? []).filter((c) => c.status === 'hired');
-  if (active.length >= MAX_HIRED_CREW) {
-    return withMessage(state, `Max ${MAX_HIRED_CREW} crew members. Fire someone first.`);
+  const maxCrew = getMaxHiredCrew(state);
+  if (active.length >= maxCrew) {
+    return withMessage(state, `Max ${maxCrew} crew members. Fire someone first.`);
   }
 
   if (!meetsRecruitUnlock(state, offer)) {
@@ -95,22 +108,27 @@ export function hireCrewMember(state: GameState, recruitId: string): GameState {
     );
   }
 
-  const member = createDefaultHiredCrewFields({
-    id: `crew_${state.player.day}_${offer.templateId}_${Math.random().toString(36).slice(2, 6)}`,
-    templateId: offer.templateId,
-    name: offer.name,
-    role: offer.role,
-    cityId: offer.cityId,
-    areaId: offer.areaId,
-    skill: offer.skill,
-    loyalty: offer.loyalty,
-    salaryPerDay: offer.salaryPerDay,
-    hireCost: offer.hireCost,
-    bonuses: offer.bonuses,
-    riskTraits: offer.riskTraits,
-    status: 'hired',
-    daysUnpaid: 0,
-    hiredDay: state.player.day,
+  const member = normalizeHiredCrewMember({
+    ...createDefaultHiredCrewFields({
+      id: `crew_${state.player.day}_${offer.templateId}_${Math.random().toString(36).slice(2, 6)}`,
+      templateId: offer.templateId,
+      name: offer.name,
+      role: offer.role,
+      cityId: offer.cityId,
+      areaId: offer.areaId,
+      skill: offer.skill,
+      loyalty: offer.loyalty,
+      salaryPerDay: offer.salaryPerDay,
+      hireCost: offer.hireCost,
+      bonuses: offer.bonuses,
+      riskTraits: offer.riskTraits,
+      status: 'hired',
+      daysUnpaid: 0,
+      hiredDay: state.player.day,
+    }),
+    morale: offer.morale,
+    stress: offer.stress,
+    specialty: offer.specialty,
   });
 
   const history: CrewHistoryEntry[] = [

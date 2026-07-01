@@ -1,13 +1,13 @@
 import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { PressableCard } from './PressableCard';
-import { AppIcons } from '../../theme/icons';
+import { AppIcon, AppIcons, IconName, isIconName } from '../../theme/icons';
 import { palette, radius, spacing, typography } from '../../theme/theme';
 
 export interface QuickAction {
   id: string;
   label: string;
-  icon: string;
+  icon: IconName | string;
   onPress: () => void;
 }
 
@@ -28,7 +28,11 @@ function QuickActionsGridInner({ actions }: QuickActionsGridProps) {
             accessibilityLabel={action.label}
           >
             <View style={styles.cell}>
-              <Text style={styles.icon}>{action.icon}</Text>
+              {isIconName(action.icon) ? (
+                <AppIcon name={action.icon} size={22} color={palette.neon} />
+              ) : (
+                <Text style={styles.icon}>{action.icon}</Text>
+              )}
               <Text style={styles.label}>{action.label}</Text>
             </View>
           </PressableCard>

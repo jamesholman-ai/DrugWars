@@ -10,6 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { palette, radius, spacing, typography, animation, buttons } from '../../theme/theme';
 import { triggerPressHaptic } from '../../hooks/usePressFeedback';
+import { AppIcon, IconName, isIconName } from '../../theme/icons';
 
 export type NeonButtonVariant =
   | 'primary'
@@ -27,7 +28,7 @@ interface NeonButtonProps {
   onPress?: () => void;
   variant?: NeonButtonVariant;
   size?: NeonButtonSize;
-  icon?: string;
+  icon?: IconName | string;
   disabled?: boolean;
   style?: ViewStyle;
   accessibilityLabel?: string;
@@ -159,7 +160,13 @@ export function NeonButton({
           />
         ) : null}
         <View style={styles.inner}>
-          {icon ? <Text style={[styles.icon, { color: v.text }]}>{icon}</Text> : null}
+          {icon ? (
+            isIconName(icon) ? (
+              <AppIcon name={icon} size={s.font} color={v.text} style={styles.iconSpacing} />
+            ) : (
+              <Text style={[styles.icon, { color: v.text }]}>{icon}</Text>
+            )
+          ) : null}
           <Text style={[styles.label, { color: v.text, fontSize: s.font }]} numberOfLines={2}>
             {label}
           </Text>
@@ -184,6 +191,9 @@ const styles = StyleSheet.create({
   },
   icon: {
     fontSize: 16,
+  },
+  iconSpacing: {
+    marginRight: 0,
   },
   label: {
     fontWeight: '700',

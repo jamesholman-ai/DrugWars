@@ -16,6 +16,7 @@ export { EmpireEventTimeline } from './EmpireEventTimeline';
 export { EmpireCrewCard } from './EmpireCrewCard';
 export { EmpireBusinessCard } from './EmpireBusinessCard';
 export { EmpirePropertyCard } from './EmpirePropertyCard';
+export { PropertyListingCard, getPropertyLockReason } from './PropertyListingCard';
 export { CityNewsFeed } from './CityNewsFeed';
 export { DashboardCard } from './DashboardCard';
 export { ReputationBadge } from './ReputationBadge';

@@ -6,14 +6,15 @@ import { FinanceAmountModal } from '../components/FinanceAmountModal';
 import { GameButton } from '../components/GameButton';
 import { GameNavFooter } from '../components/GameNavFooter';
 import { AppShell, MoneyCard, ScreenHeader, SectionCard } from '../components/ui';
-import { CityNewsFeed, ReputationBadge, ActionFeedback, inferActionFeedback, SectionHeader, AnimatedMoney } from '../components/premium';
+import { CityNewsFeed, ReputationBadge, ActionFeedback, inferActionFeedback, SectionHeader, AnimatedMoney, DashboardCard } from '../components/premium';
 import { AppIcons } from '../theme/icons';
 import { buildCityNewsFeed } from '../game/cityNewsSystem';
 import { useGame } from '../game/GameContext';
 import { BORROW_AMOUNTS, getMaxBorrow } from '../game/engine';
 import { getNetWorth } from '../game/economy';
 import { getDailyPayroll } from '../game/crewBonuses';
-import { getDailySafehouseUpkeep } from '../game/safehouseSystem';
+import { getDailyExpenseBreakdown, formatDailyNet } from '../game/dailyExpenses';
+import { getDailyPropertyRent, getDailyPropertyUpkeep } from '../game/safehouseSystem';
 import { getPortfolioSummary } from '../game/businessManagementSystem';
 import {
   getEffectiveDebtInterestRate,
@@ -75,7 +76,9 @@ export function FinanceScreen({ navigation }: Props) {
   const interestRate = getEffectiveDebtInterestRate(gameState);
   const nextInterest = getNextDayInterest(gameState);
   const payroll = getDailyPayroll(gameState);
-  const propertyUpkeep = getDailySafehouseUpkeep(gameState);
+  const propertyRent = getDailyPropertyRent(gameState);
+  const propertyUpkeep = getDailyPropertyUpkeep(gameState);
+  const dailyBreakdown = getDailyExpenseBreakdown(gameState);
   const portfolio = getPortfolioSummary(gameState);
   const businessIncome = portfolio.income;
   const businessUpkeep = portfolio.upkeep;
@@ -129,6 +132,51 @@ export function FinanceScreen({ navigation }: Props) {
         <MoneyCard label="Clean" amount={formatMoney(cleanCash)} amountValue={cleanCash} tone="cyan" icon={AppIcons.clean} />
       </View>
 
+      <View style={styles.moneyRow}>
+        <DashboardCard
+          title="Daily Income"
+          value={formatMoney(dailyBreakdown.totalIncome)}
+          tone="green"
+          icon={AppIcons.money}
+        />
+        <DashboardCard
+          title="Daily Expenses"
+          value={formatMoney(dailyBreakdown.totalExpenses)}
+          tone="red"
+          icon={AppIcons.debt}
+        />
+      </View>
+      <View style={styles.moneyRow}>
+        <DashboardCard
+          title="Daily Net"
+          value={formatDailyNet(dailyBreakdown.dailyNet)}
+          tone={dailyBreakdown.dailyNet >= 0 ? 'green' : 'red'}
+          icon={AppIcons.finance}
+        />
+      </View>
+
+      <SectionCard title="Daily Breakdown" subtitle="Projected when the day advances" tone="purple">
+        {dailyBreakdown.income.map((line) => (
+          <StatRow key={line.key} label={line.label} value={formatMoney(line.amount)} tone={palette.neon} />
+        ))}
+        {dailyBreakdown.expenses.map((line) => (
+          <StatRow key={line.key} label={line.label} value={formatMoney(line.amount)} />
+        ))}
+        <StatRow
+          label="Projected daily net"
+          value={formatDailyNet(dailyBreakdown.dailyNet)}
+          tone={dailyBreakdown.dailyNet >= 0 ? palette.neon : palette.danger}
+        />
+      </SectionCard>
+
+      <SectionCard title="Tomorrow" subtitle="Charges on next day advance">
+        <StatRow label="Debt interest" value={formatMoney(dailyBreakdown.tomorrow.debtInterest)} />
+        <StatRow label="Payroll" value={formatMoney(dailyBreakdown.tomorrow.payroll)} />
+        <StatRow label="Property rent" value={formatMoney(dailyBreakdown.tomorrow.propertyRent)} />
+        <StatRow label="Property upkeep" value={formatMoney(dailyBreakdown.tomorrow.propertyUpkeep)} />
+        <StatRow label="Business upkeep" value={formatMoney(dailyBreakdown.tomorrow.businessUpkeep)} />
+      </SectionCard>
+
       <SectionCard title="Overview" tone="purple">
         <StatRow label="Net worth" value={formatMoney(netWorth)} tone={palette.purpleBright} numericValue={netWorth} />
         <StatRow
@@ -158,6 +206,7 @@ export function FinanceScreen({ navigation }: Props) {
         <StatRow label="Business income / day" value={formatMoney(businessIncome)} tone={palette.neon} />
         <StatRow label="Payroll / day" value={formatMoney(payroll)} />
         <StatRow label="Business upkeep / day" value={formatMoney(businessUpkeep)} />
+        <StatRow label="Property rent / day" value={formatMoney(propertyRent)} />
         <StatRow label="Property upkeep / day" value={formatMoney(propertyUpkeep)} />
         <StatRow label="Laundering capacity / day" value={formatMoney(launderCap)} />
       </SectionCard>
@@ -168,6 +217,9 @@ export function FinanceScreen({ navigation }: Props) {
           <StatRow label="Business upkeep" value={formatMoney(lastDaySummary.businessUpkeep)} />
           <StatRow label="Payroll" value={formatMoney(lastDaySummary.payroll)} />
           <StatRow label="Property upkeep" value={formatMoney(lastDaySummary.safehouseUpkeep)} />
+          {lastDaySummary.propertyRent > 0 ? (
+            <StatRow label="Property rent" value={formatMoney(lastDaySummary.propertyRent)} />
+          ) : null}
           <StatRow label="Laundered" value={formatMoney(lastDaySummary.laundered)} />
           {lastDaySummary.heatReduced > 0 ? (
             <StatRow label="Heat reduced" value={`−${lastDaySummary.heatReduced}`} />

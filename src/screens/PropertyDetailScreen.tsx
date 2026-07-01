@@ -6,7 +6,9 @@ import { GameButton } from '../components/GameButton';
 import { AppShell, ScreenHeader, SectionCard } from '../components/ui';
 import { EmpirePropertyCard, EmpireEventTimeline } from '../components/premium';
 import { useGame } from '../game/GameContext';
-import { SAFEHOUSE_MAP, SAFEHOUSE_TIER_LABELS } from '../data/safehouses';
+import { getPropertyTypeLabel } from '../data/safehouses';
+import { getPropertyDef } from '../game/propertyPoolSystem';
+import { PROPERTY_CATEGORY_LABELS } from '../data/propertyTemplates';
 import {
   PROPERTY_UPGRADE_LABELS,
   getPropertyUpgradeCost,
@@ -43,6 +45,7 @@ export function PropertyDetailScreen({ navigation, route }: Props) {
     assignPropertyGuard,
     upgradePropertyAction,
     layLowProperty,
+    setHomeBase,
   } = useGame();
   const { safehouseId } = route.params;
 
@@ -53,7 +56,7 @@ export function PropertyDetailScreen({ navigation, route }: Props) {
   if (!gameState) return null;
 
   const record = getPropertyRecord(gameState, safehouseId);
-  const def = SAFEHOUSE_MAP[safehouseId];
+  const def = getPropertyDef(gameState, safehouseId);
   const { player } = gameState;
   const rank = getCurrentRank(gameState);
   const guard = record ? getAssignedGuardForProperty(gameState, safehouseId) : undefined;
@@ -84,7 +87,7 @@ export function PropertyDetailScreen({ navigation, route }: Props) {
       header={
         <ScreenHeader
           title={def.name}
-          subtitle={SAFEHOUSE_TIER_LABELS[def.tier]}
+          subtitle={`${PROPERTY_CATEGORY_LABELS[def.category]} · ${getPropertyTypeLabel(def)}`}
           day={player.day}
           location={getAreaLabel(def.cityId, def.areaId)}
           rank={rank.name}
@@ -152,6 +155,14 @@ export function PropertyDetailScreen({ navigation, route }: Props) {
       </SectionCard>
 
       <SectionCard title="Actions">
+        <GameButton
+          label={player.homeBaseId === safehouseId ? 'Primary Base' : 'Set as Primary Base'}
+          size="sm"
+          variant={player.homeBaseId === safehouseId ? 'primary' : 'secondary'}
+          disabled={player.homeBaseId === safehouseId}
+          onPress={() => setHomeBase(safehouseId)}
+          style={styles.btn}
+        />
         <GameButton
           label="Manage Storage"
           size="sm"

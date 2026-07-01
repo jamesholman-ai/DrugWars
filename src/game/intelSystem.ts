@@ -1,7 +1,12 @@
 import { COMMODITY_MAP, COMMODITIES } from '../data/commodities';
 import { CITIES, CITY_MAP, getAreaLabel } from '../data/locations';
+import {
+  buildIntelMessageFromTemplate,
+  pickIntelTemplate,
+} from '../data/intelTemplates';
 import { CommodityId, GameState } from '../types/game';
 import {
+  IntelCategory,
   IntelEntry,
   IntelKind,
   IntelSource,
@@ -263,6 +268,53 @@ function buildSafeRouteIntel(state: GameState, random: () => number): IntelEntry
   };
 }
 
+function buildTemplateIntel(
+  state: GameState,
+  random: () => number,
+  category?: IntelCategory
+): IntelEntry {
+  const template = pickIntelTemplate(category, random);
+  const city = CITY_MAP[state.player.currentCityId];
+  const pool = city?.demandDrugs?.length ? city.demandDrugs : COMMODITIES.map((c) => c.id);
+  const commodityId = pick(pool);
+  const { message, confidence } = buildIntelMessageFromTemplate(
+    template,
+    {
+      drug: commodityId,
+      cityId: state.player.currentCityId,
+      areaId: state.player.currentAreaId,
+      reputation: state.player.reputation,
+    },
+    random
+  );
+  const days = 1 + Math.floor(random() * 3);
+  const kind: IntelKind =
+    template.category === 'police'
+      ? 'police_warning'
+      : template.category === 'travel'
+        ? 'safe_route'
+        : template.category === 'empire'
+          ? 'raid_warning'
+          : random() < 0.5
+            ? 'price_spike'
+            : 'price_crash';
+
+  return {
+    id: uniqueId(`intel_${template.category}`, state.player.day, random),
+    kind,
+    source: 'street',
+    message,
+    createdDay: state.player.day,
+    expiresDay: state.player.day + days,
+    revealed: false,
+    commodityId,
+    cityId: state.player.currentCityId,
+    areaId: state.player.currentAreaId,
+    category: template.category,
+    confidence,
+  };
+}
+
 function pickIntelGenerator(state: GameState, random: () => number): IntelEntry {
   const heat = state.player.heat;
   const rep = state.player.reputation;
@@ -287,6 +339,20 @@ function pickIntelGenerator(state: GameState, random: () => number): IntelEntry 
   }
   if (random() < 0.25) {
     return buildSupplierIntel(state, random);
+  }
+  if (random() < 0.55) {
+    const catRoll = random();
+    const category: IntelCategory =
+      catRoll < 0.35
+        ? 'market'
+        : catRoll < 0.55
+          ? 'police'
+          : catRoll < 0.75
+            ? 'travel'
+            : catRoll < 0.9
+              ? 'empire'
+              : 'rumor';
+    return buildTemplateIntel(state, random, category);
   }
 
   const city = CITY_MAP[state.player.currentCityId];
@@ -551,8 +617,13 @@ export function getExpiredIntel(state: GameState): IntelEntry[] {
   return state.expiredIntel ?? [];
 }
 
-export function getTopActiveIntel(state: GameState): IntelEntry | undefined {
-  return getActiveIntel(state)[0];
+export function getTopActiveIntel(state: GameState, limit = 3): IntelEntry[] {
+  return getActiveIntel(state).slice(0, limit);
+}
+
+/** @deprecated Use getTopActiveIntel()[0] */
+export function getTopActiveIntelEntry(state: GameState): IntelEntry | undefined {
+  return getTopActiveIntel(state, 1)[0];
 }
 
 export function daysUntilIntelExpires(state: GameState, entry: IntelEntry): number {

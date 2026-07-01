@@ -1,6 +1,7 @@
 import { GameState, CommodityId, InventoryItem } from '../types/game';
 import { SupplierDefinition, SupplierOffer, SupplierRelationship } from '../types/suppliers';
 import { RankId } from '../types/progression';
+import { BALANCE } from '../data/balanceConfig';
 import { SUPPLIERS, SUPPLIER_MAP } from '../data/suppliers';
 import { COMMODITY_MAP } from '../data/commodities';
 import { RANKS } from '../data/progression';
@@ -16,8 +17,8 @@ import { trackMissionEvent } from './missionSystem';
 
 const MAX_OFFERS = 6;
 const TRUST_PER_PURCHASE = 5;
-const TRUST_BONUS_DISCOUNT = 0.0012; // +0.12% per trust point
-const HUSTLER_EXTRA_DISCOUNT = 0.04;
+const TRUST_BONUS_DISCOUNT = 0.0012 * BALANCE.supplierTrustDiscountScale;
+const HUSTLER_EXTRA_DISCOUNT = 0.04 * BALANCE.supplierDiscountScale;
 
 function rankIndex(rankId: RankId): number {
   return RANKS.findIndex((r) => r.id === rankId);

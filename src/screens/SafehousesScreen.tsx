@@ -1,73 +1,140 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ActionMessage } from '../components/ActionMessage';
-import { GameButton } from '../components/GameButton';
 import { GameNavFooter } from '../components/GameNavFooter';
-import { AppShell, EventBanner, MoneyCard, ScreenHeader, SectionCard } from '../components/ui';
-import { EmptyState, EmpirePropertyCard } from '../components/premium';
-import { useGame } from '../game/GameContext';
-import { SAFEHOUSE_MAP, SAFEHOUSE_TIER_LABELS } from '../data/safehouses';
 import {
-  getDailySafehouseUpkeep,
+  AAACommandShell,
+  BackgroundImageCard,
+} from '../components/aaa';
+import { EventBanner, FilterChips, SectionCard } from '../components/ui';
+import {
+  EmptyState,
+  EmpirePropertyCard,
+  PropertyListingCard,
+  getPropertyLockReason,
+  SectionHeader,
+} from '../components/premium';
+import { useGame } from '../game/GameContext';
+import {
   getSafehousesAtLocation,
-  getStoredUsed,
   isSafehouseOwned,
 } from '../game/safehouseSystem';
 import { getPropertyPortfolioSummary } from '../game/propertyManagementSystem';
+import { getPropertyDef } from '../game/propertyPoolSystem';
 import { getAreaLabel } from '../data/locations';
-import { getCurrentRank } from '../game/progression';
+import { isCityUnlocked } from '../game/progression';
 import { RootStackParamList } from '../types/game';
+import { SafehouseDefinition } from '../types/safehouses';
 import { formatMoney } from '../utils/format';
-import { computeRankProgressPercent } from '../utils/rankProgress';
+import { getCityMaster } from '../assets/imageRegistry';
+import { AppIcon, AppIcons } from '../theme/icons';
 import { palette, spacing, typography } from '../theme/theme';
+import { RANKS } from '../data/progression';
+import { RankId } from '../types/progression';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Safehouses'>;
+type PropertyTab = 'rentals' | 'sale' | 'owned' | 'storage';
+
+const TAB_OPTIONS: { id: PropertyTab; label: string }[] = [
+  { id: 'rentals', label: 'Rentals' },
+  { id: 'sale', label: 'For Sale' },
+  { id: 'owned', label: 'Owned / Rented' },
+  { id: 'storage', label: 'Storage' },
+];
+
+function rankIndex(rankId: RankId): number {
+  return RANKS.findIndex((r) => r.id === rankId);
+}
+
+function meetsUnlock(state: Parameters<typeof getPropertyLockReason>[0], def: SafehouseDefinition): boolean {
+  if (!isCityUnlocked(state, def.cityId)) return false;
+  if (def.minRank && rankIndex(state.progression.rankId) < rankIndex(def.minRank)) return false;
+  if (def.minReputation != null && state.player.reputation < def.minReputation) return false;
+  return true;
+}
 
 export function SafehousesScreen({ navigation }: Props) {
-  const { gameState, purchaseSafehouse } = useGame();
+  const { gameState, purchaseSafehouse, rentSafehouse } = useGame();
+  const [tab, setTab] = useState<PropertyTab>('rentals');
 
   useEffect(() => {
     if (!gameState) navigation.replace('Home');
   }, [gameState, navigation]);
 
+  const listings = useMemo(() => {
+    if (!gameState) return [];
+    const { player } = gameState;
+    return getSafehousesAtLocation(gameState, player.currentCityId, player.currentAreaId);
+  }, [gameState]);
+
+  const filtered = useMemo(() => {
+    if (!gameState) return [];
+    const ownedIds = new Set((gameState.ownedSafehouses ?? []).map((o) => o.safehouseId));
+
+    if (tab === 'owned') {
+      return (gameState.ownedSafehouses ?? [])
+        .map((o) => getPropertyDef(gameState, o.safehouseId))
+        .filter((d): d is SafehouseDefinition => d != null);
+    }
+    if (tab === 'rentals') {
+      return listings.filter((d) => d.listingMode === 'rent' && !ownedIds.has(d.id));
+    }
+    if (tab === 'sale') {
+      return listings.filter((d) => d.listingMode === 'sale' && !ownedIds.has(d.id));
+    }
+    return listings.filter((d) => d.category === 'storage_sites' && !ownedIds.has(d.id));
+  }, [gameState, listings, tab]);
+
   if (!gameState) return null;
 
   const { player, lastMessage, ownedSafehouses } = gameState;
-  const rank = getCurrentRank(gameState);
-  const local = getSafehousesAtLocation(gameState, player.currentCityId, player.currentAreaId);
   const portfolio = getPropertyPortfolioSummary(gameState);
+  const heroArt = getCityMaster(player.currentCityId);
+  const locationLabel = getAreaLabel(player.currentCityId, player.currentAreaId);
 
   return (
-    <AppShell
-      header={
-        <ScreenHeader
-          title="Properties"
-          subtitle="Storage · security · guards"
-          day={player.day}
-          location={getAreaLabel(player.currentCityId, player.currentAreaId)}
-          rank={rank.name}
-          rankProgress={computeRankProgressPercent(gameState)}
-        />
-      }
-      bottomNav={<GameNavFooter navigation={navigation} active="Empire" />}
-    >
-      <View style={styles.moneyRow}>
-        <MoneyCard label="Properties" amount={String(portfolio.count)} tone="purple" icon="🏠" />
-        <MoneyCard label="Storage" amount={String(portfolio.storage)} tone="green" icon="📦" />
-        <MoneyCard label="Upkeep" amount={formatMoney(portfolio.upkeep)} tone="amber" icon="💸" />
+    <AAACommandShell footer={<GameNavFooter navigation={navigation} active="Empire" />}>
+      <BackgroundImageCard
+        art={heroArt}
+        focalPoint="center"
+        overlayStrength={0.35}
+        height={120}
+      >
+        <Text style={styles.heroLabel}>PROPERTIES</Text>
+        <Text style={styles.heroDistrict}>{locationLabel.toUpperCase()}</Text>
+      </BackgroundImageCard>
+
+      <View style={styles.statRow}>
+        <View style={styles.statChip}>
+          <AppIcon name="property" size={16} color={palette.purpleBright} />
+          <Text style={styles.statValue}>{portfolio.count}</Text>
+          <Text style={styles.statLabel}>Owned</Text>
+        </View>
+        <View style={styles.statChip}>
+          <AppIcon name="storage" size={16} color={palette.neon} />
+          <Text style={styles.statValue}>{portfolio.storage}</Text>
+          <Text style={styles.statLabel}>Storage</Text>
+        </View>
+        <View style={styles.statChip}>
+          <AppIcon name="cash" size={16} color={palette.amber} />
+          <Text style={styles.statValue}>{formatMoney(portfolio.dailyCost)}</Text>
+          <Text style={styles.statLabel}>Daily</Text>
+        </View>
       </View>
 
       <ActionMessage message={lastMessage} />
 
+      <FilterChips options={TAB_OPTIONS} value={tab} onChange={setTab} />
+
       <EventBanner
-        label="Empire Properties"
-        message="Upgrade security and assign guards. Hidden compartments protect stored product from seizures."
+        label="Find Place"
+        message="Rent cheap early. Buy homes for upkeep instead of rent. Storage sites hold bulk off the street."
         tone="green"
       />
 
-      {(ownedSafehouses ?? []).length > 0 ? (
-        <SectionCard title="Your Empire" subtitle="Tap for upgrades and guards">
+      {tab === 'owned' && (ownedSafehouses ?? []).length > 0 ? (
+        <SectionCard title="Your Portfolio" subtitle="Tap for upgrades, guards, storage">
           {(ownedSafehouses ?? []).map((record) => (
             <EmpirePropertyCard
               key={record.safehouseId}
@@ -77,75 +144,92 @@ export function SafehousesScreen({ navigation }: Props) {
             />
           ))}
         </SectionCard>
-      ) : (
-        <SectionCard title="Your Empire">
-          <EmptyState
-            icon="🏠"
-            title="No properties yet"
-            message="Buy a safehouse on-site to store product off the street. Upgrades expand capacity and reduce raid risk."
-          />
-        </SectionCard>
-      )}
+      ) : null}
 
-      <SectionCard title="This Area" subtitle={`${local.length} listing(s)`}>
-        {local.length === 0 ? (
-          <EmptyState icon="📍" title="No listings here" message="Check other districts for available properties." />
-        ) : (
-          local.map((def) => {
+      <SectionHeader
+        title={tab === 'owned' ? 'All Holdings' : 'District Listings'}
+        subtitle={`${filtered.length} in ${locationLabel}`}
+      />
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={tab === 'storage' ? AppIcons.storage : AppIcons.property}
+          title={tab === 'owned' ? 'No properties yet' : 'No listings here'}
+          message={
+            tab === 'owned'
+              ? 'Use Find Place tabs to rent a room or buy a safehouse in this district.'
+              : 'Travel to another district or advance the day for fresh listings.'
+          }
+        />
+      ) : (
+        <View>
+          {filtered.map((def) => {
             const owned = isSafehouseOwned(gameState, def.id);
-            const stored = getStoredUsed(gameState, def.id);
+            const unlockOk = meetsUnlock(gameState, def);
+            const cashLock = getPropertyLockReason(gameState, def);
+            const locked = !unlockOk || (!owned && cashLock != null);
+            const lockReason = !unlockOk
+              ? def.minRank
+                ? `Requires ${RANKS.find((r) => r.id === def.minRank)?.name ?? def.minRank}`
+                : `Requires ${def.minReputation} reputation`
+              : cashLock ?? undefined;
 
             return (
-              <View key={def.id} style={styles.card}>
-                <Text style={styles.name}>{def.name}</Text>
-                <Text style={styles.tier}>{SAFEHOUSE_TIER_LABELS[def.tier]}</Text>
-                <Text style={styles.desc}>{def.description}</Text>
-                <Text style={styles.meta}>
-                  Storage {def.storageCapacity} · Heat −{def.heatReductionPerDay}/day
-                </Text>
-                {owned ? (
-                  <>
-                    <Text style={styles.owned}>OWNED · {stored} stored · see empire above</Text>
-                    <GameButton
-                      label="MANAGE PROPERTY"
-                      size="sm"
-                      variant="secondary"
-                      onPress={() => navigation.navigate('PropertyDetail', { safehouseId: def.id })}
-                      style={styles.btn}
-                    />
-                  </>
-                ) : (
-                  <GameButton
-                    label={`BUY ${formatMoney(def.purchaseCost)}`}
-                    size="sm"
-                    disabled={player.isGameOver || player.cash < def.purchaseCost}
-                    onPress={() => purchaseSafehouse(def.id)}
-                    style={styles.btn}
-                  />
-                )}
-              </View>
+              <PropertyListingCard
+                key={def.id}
+                state={gameState}
+                def={def}
+                owned={owned}
+                locked={locked || player.isGameOver}
+                lockReason={lockReason}
+                onRent={() => rentSafehouse(def.id)}
+                onBuy={() => purchaseSafehouse(def.id)}
+                onManage={() => navigation.navigate('PropertyDetail', { safehouseId: def.id })}
+              />
             );
-          })
-        )}
-      </SectionCard>
-    </AppShell>
+          })}
+        </View>
+      )}
+    </AAACommandShell>
   );
 }
 
 const styles = StyleSheet.create({
-  moneyRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
-  card: {
+  heroLabel: {
+    color: palette.purpleBright,
+    fontSize: typography.caption,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 4,
+  },
+  heroDistrict: {
+    color: palette.text,
+    fontSize: typography.subtitle,
+    fontWeight: '900',
+  },
+  statRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  statChip: {
+    flex: 1,
     backgroundColor: palette.bgCard,
-    borderRadius: spacing.md,
     borderWidth: 1,
     borderColor: palette.border,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    borderRadius: 12,
+    padding: spacing.sm,
+    alignItems: 'center',
+    gap: 4,
   },
-  name: { color: palette.text, fontSize: typography.subtitle, fontWeight: '800' },
-  tier: { color: palette.neon, fontSize: typography.caption, fontWeight: '700', marginTop: 2 },
-  desc: { color: palette.textSecondary, fontSize: typography.caption, marginTop: 6, lineHeight: 18 },
-  meta: { color: palette.textMuted, fontSize: typography.caption, marginTop: 4 },
-  owned: { color: palette.neon, fontSize: typography.caption, fontWeight: '700', marginTop: 8 },
-  btn: { marginTop: spacing.sm, marginBottom: 0 },
+  statValue: {
+    color: palette.text,
+    fontSize: typography.caption,
+    fontWeight: '800',
+  },
+  statLabel: {
+    color: palette.textMuted,
+    fontSize: 9,
+    fontWeight: '700',
+  },
 });

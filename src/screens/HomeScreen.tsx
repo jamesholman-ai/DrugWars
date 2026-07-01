@@ -5,7 +5,9 @@ import { GameButton } from '../components/GameButton';
 import { AppShell, SectionCard } from '../components/ui';
 import { NeonButton } from '../components/premium';
 import { useGame } from '../game/GameContext';
-import { getAreaLabel } from '../data/locations';
+import { STARTING_AREA_ID, STARTING_CITY_ID, getAreaLabel } from '../data/locations';
+import { navigateWithLocationIntro } from '../utils/presentationNav';
+import { loadGameState } from '../game/saveStorage';
 import { GAME_DISCLAIMER } from '../data/commodities';
 import { RootStackParamList } from '../types/game';
 import { formatMoney } from '../utils/format';
@@ -33,7 +35,12 @@ export function HomeScreen({ navigation }: Props) {
       setBusy(true);
       try {
         await startNewGame();
-        navigation.navigate('Game');
+        navigateWithLocationIntro(navigation, {
+          cityId: STARTING_CITY_ID,
+          areaId: STARTING_AREA_ID,
+          day: 1,
+          returnTo: 'Game',
+        });
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Could not start a new game.';
@@ -67,9 +74,15 @@ export function HomeScreen({ navigation }: Props) {
   const handleContinue = async () => {
     setBusy(true);
     try {
+      const loaded = await loadGameState();
       const ok = await continueGame();
-      if (ok) {
-        navigation.navigate('Game');
+      if (ok && loaded) {
+        navigateWithLocationIntro(navigation, {
+          cityId: loaded.player.currentCityId,
+          areaId: loaded.player.currentAreaId,
+          day: loaded.player.day,
+          returnTo: 'Game',
+        });
       }
     } finally {
       setBusy(false);

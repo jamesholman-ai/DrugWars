@@ -1,2 +1,4 @@
-/** Daily loan-shark interest rate applied on day advance. */
-export const DAILY_DEBT_INTEREST = 0.025;
+import { BALANCE } from '../data/balanceConfig';
+
+/** Daily debt interest rate applied to outstanding loan balance. */
+export const DAILY_DEBT_INTEREST = BALANCE.debtInterestRate;

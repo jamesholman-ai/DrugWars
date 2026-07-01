@@ -18,7 +18,8 @@ import {
 import { getAreaLabel } from '../data/locations';
 import { getCurrentRank } from '../game/progression';
 import { RootStackParamList } from '../types/game';
-import { IntelEntry } from '../types/intel';
+import { IntelCategory, IntelEntry } from '../types/intel';
+import { INTEL_CATEGORY_LABELS } from '../data/intelTemplates';
 import { computeRankProgressPercent } from '../utils/rankProgress';
 import { palette, radius, spacing, typography } from '../theme/theme';
 
@@ -34,14 +35,28 @@ function IntelRow({
   expired?: boolean;
 }) {
   const daysLeft = Math.max(0, entry.expiresDay - day);
+  const category = entry.category;
+  const confidence = entry.confidence;
   return (
     <View style={[styles.intelRow, expired && styles.intelRowExpired]}>
       <View style={styles.intelHeader}>
-        <Text style={styles.intelSource}>{formatIntelSource(entry)}</Text>
+        <View style={styles.badgeRow}>
+          {category ? (
+            <Text style={styles.categoryBadge}>
+              {INTEL_CATEGORY_LABELS[category as IntelCategory] ?? category}
+            </Text>
+          ) : null}
+          {confidence ? (
+            <Text style={[styles.confBadge, confidence === 'high' ? styles.confHigh : styles.confLow]}>
+              {confidence === 'high' ? 'High confidence' : 'Low confidence'}
+            </Text>
+          ) : null}
+        </View>
         <Text style={styles.intelExpiry}>
           {expired ? 'Expired' : daysLeft === 0 ? 'Expires today' : `Expires in ${daysLeft}d`}
         </Text>
       </View>
+      <Text style={styles.intelSource}>{formatIntelSource(entry)}</Text>
       <Text style={styles.intelMessage}>{entry.message}</Text>
     </View>
   );
@@ -150,14 +165,47 @@ const styles = StyleSheet.create({
   intelHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: spacing.xs,
     gap: spacing.sm,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    flex: 1,
+  },
+  categoryBadge: {
+    color: palette.purpleBright,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    backgroundColor: palette.purpleGlow,
+    borderRadius: radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: 'hidden',
+  },
+  confBadge: {
+    fontSize: 9,
+    fontWeight: '700',
+    borderRadius: radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  confHigh: {
+    color: palette.neon,
+    backgroundColor: palette.neonSoft,
+  },
+  confLow: {
+    color: palette.amber,
+    backgroundColor: palette.amberGlow,
   },
   intelSource: {
     color: palette.cyan,
     fontSize: typography.caption,
     fontWeight: '800',
+    marginBottom: 4,
   },
   intelExpiry: {
     color: palette.textMuted,

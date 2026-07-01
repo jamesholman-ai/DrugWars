@@ -14,7 +14,7 @@ import {
 import { useGame } from '../game/GameContext';
 import { getAreaLabel } from '../data/locations';
 import { getCurrentRank } from '../game/progression';
-import { MAX_ACTIVE_CONTRACTS } from '../data/contracts';
+import { getMaxActiveContracts } from '../data/rankBenefits';
 import { RootStackParamList } from '../types/game';
 import { formatMoney } from '../utils/format';
 import { computeRankProgressPercent } from '../utils/rankProgress';
@@ -36,6 +36,7 @@ export function ContractsScreen({ navigation }: Props) {
   const { player, lastMessage, contractOffers, activeContracts, completedContracts, failedContracts } =
     gameState;
   const rank = getCurrentRank(gameState);
+  const maxActiveContracts = getMaxActiveContracts(gameState);
   const offers = (contractOffers ?? []).filter((c) => c.status === 'pending');
   const active = activeContracts ?? [];
   const history = [...(completedContracts ?? []), ...(failedContracts ?? [])].slice(-10).reverse();
@@ -62,7 +63,7 @@ export function ContractsScreen({ navigation }: Props) {
 
       <EventBanner
         label="Buyer Contracts"
-        message={`Accept up to ${MAX_ACTIVE_CONTRACTS} active jobs. Deliver on-site before the deadline. City travel advances the day — plan ahead.`}
+        message={`Accept up to ${maxActiveContracts} active jobs. Deliver on-site before the deadline. City travel advances the day — plan ahead.`}
         tone="amber"
       />
 
@@ -91,7 +92,7 @@ export function ContractsScreen({ navigation }: Props) {
                 contract={contract}
                 state={gameState}
                 variant="offer"
-                disabled={player.isGameOver || active.length >= MAX_ACTIVE_CONTRACTS}
+                disabled={player.isGameOver || active.length >= maxActiveContracts}
                 onAccept={() => acceptContract(contract.id)}
               />
             ))

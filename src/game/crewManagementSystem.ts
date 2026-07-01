@@ -1,7 +1,7 @@
 import { GameState } from '../types/game';
 import { HiredCrewMember, CrewRole } from '../types/crew';
 import { CrewAssignment } from '../types/empire';
-import { BUSINESS_MAP } from '../data/businesses';
+import { getBusinessDef } from './businessPoolSystem';
 import { SAFEHOUSE_MAP } from '../data/safehouses';
 import {
   ALL_CREW_ASSIGNMENTS,
@@ -85,9 +85,9 @@ export function assignCrewMember(
     };
     updated = updateCrewMember(updated, crewId, {
       currentAssignment: assignment,
-      ...logCrewEvent(member, state.player.day, `Assigned to manage ${BUSINESS_MAP[targetId]?.name ?? 'business'}.`, 'good'),
+      ...logCrewEvent(member, state.player.day, `Assigned to manage ${getBusinessDef(state, targetId)?.name ?? 'business'}.`, 'good'),
     });
-    return withMessage(updated, `${member.name} now manages ${BUSINESS_MAP[targetId]?.name ?? 'the front'}.`);
+    return withMessage(updated, `${member.name} now manages ${getBusinessDef(state, targetId)?.name ?? 'the front'}.`);
   }
 
   if (assignment === 'guard_property') {

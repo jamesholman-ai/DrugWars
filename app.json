@@ -15,7 +15,9 @@
           "imageWidth": 200,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-image",
+      "expo-font"
     ],
     "ios": {
       "supportsTablet": true,

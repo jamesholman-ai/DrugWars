@@ -1,8 +1,13 @@
 import { ActiveWorldEvent, CommodityId, PriceTrend } from '../types/game';
 import { eventAppliesToPrice } from '../game/worldEvents';
+import {
+  getMarketTrend,
+  getMarketTrendArrowSymbol,
+  getPreviousKnownPrice,
+  MarketTrendDirection,
+} from '../game/marketTrend';
 import { formatMoney } from './format';
 
-const FLAT_THRESHOLD = 0.08;
 const MAJOR_SWING_THRESHOLD = 0.25;
 
 export interface MarketPriceChange {
@@ -18,19 +23,9 @@ export function getMarketPriceChange(
   current: number,
   history: number[] | undefined
 ): MarketPriceChange {
-  if (!history || history.length < 2) {
-    return {
-      previousPrice: null,
-      delta: null,
-      percentChange: null,
-      trend: 'flat',
-      hasHistory: false,
-      isMajorSwing: false,
-    };
-  }
+  const previousPrice = getPreviousKnownPrice(history);
 
-  const previousPrice = history[history.length - 2];
-  if (previousPrice <= 0) {
+  if (previousPrice == null) {
     return {
       previousPrice: null,
       delta: null,
@@ -43,11 +38,8 @@ export function getMarketPriceChange(
 
   const delta = current - previousPrice;
   const percentChange = delta / previousPrice;
+  const trend = getMarketTrend(current, previousPrice);
   const absChange = Math.abs(percentChange);
-
-  let trend: PriceTrend = 'flat';
-  if (percentChange >= FLAT_THRESHOLD) trend = 'up';
-  else if (percentChange <= -FLAT_THRESHOLD) trend = 'down';
 
   return {
     previousPrice,
@@ -68,10 +60,8 @@ export function computePriceTrend(
 }
 
 export function trendArrow(trend: PriceTrend, hasHistory: boolean): string {
-  if (!hasHistory) return '◆';
-  if (trend === 'up') return '▲';
-  if (trend === 'down') return '▼';
-  return '◆';
+  if (!hasHistory) return '—';
+  return getMarketTrendArrowSymbol(trend as MarketTrendDirection);
 }
 
 export function formatPriceDelta(delta: number): string {

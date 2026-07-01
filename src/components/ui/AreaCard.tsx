@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { getDistrictImage } from '../../assets/imageRegistry';
+import { SmartImageBackground } from '../aaa/SmartImageBackground';
 import { CityAreaDefinition, TerritoryOwner } from '../../types/game';
 import { formatDemandHint, formatOwnerLabel } from '../../game/territory';
 import { RiskBadge } from '../premium/RiskBadge';
@@ -50,6 +51,8 @@ interface AreaCardProps {
   isCurrent?: boolean;
   disabled?: boolean;
   blockedReason?: string;
+  marketPersonality?: string;
+  areaMovesLabel?: string;
   onPress?: () => void;
 }
 
@@ -80,10 +83,13 @@ export function AreaCard({
   isCurrent,
   disabled,
   blockedReason,
+  marketPersonality,
+  areaMovesLabel,
   onPress,
 }: AreaCardProps) {
   const ownerStyle = OWNER_STYLE[owner];
   const risk = riskLevel(area.riskLevel);
+  const districtArt = getDistrictImage(area.cityId, area.id);
 
   return (
     <Pressable
@@ -98,25 +104,29 @@ export function AreaCard({
       disabled={disabled}
       onPress={onPress}
     >
-      {isCurrent ? (
-        <LinearGradient
-          colors={['rgba(53,255,136,0.12)', 'transparent']}
-          style={StyleSheet.absoluteFill}
-        />
-      ) : null}
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={[styles.name, isCurrent && styles.nameCurrent]} numberOfLines={1}>
-            {area.name}
-          </Text>
-          {isCurrent ? <Text style={styles.hereTag}>Here</Text> : null}
-        </View>
-        <RiskBadge level={area.riskLevel} />
-      </View>
+      <SmartImageBackground
+        source={districtArt.source}
+        resizeMode="cover"
+        focalPoint="center"
+        sourceAspectRatio={districtArt.aspectRatio}
+        sourceNativeWidth={districtArt.nativeWidth}
+        overlay
+        overlayStrength={0.25}
+        aspectRatio={16 / 10}
+        style={styles.thumbWrap}
+      >
+        <Text style={styles.thumbName} numberOfLines={1}>{area.name}</Text>
+      </SmartImageBackground>
       <View style={styles.metaRow}>
-        <Text style={styles.meta}>Police {area.policePresence}%</Text>
+        <Text style={styles.meta}>Police {area.policePresence}% · Cartel {area.cartelInfluence}%</Text>
         <Text style={styles.cost}>${area.travelCost}</Text>
       </View>
+      {marketPersonality ? (
+        <Text style={styles.personality} numberOfLines={1}>{marketPersonality}</Text>
+      ) : null}
+      {areaMovesLabel ? (
+        <Text style={styles.movesLabel}>{areaMovesLabel}</Text>
+      ) : null}
       <View style={[styles.ownerBadge, { backgroundColor: ownerStyle.bg, borderColor: ownerStyle.border }]}>
         <Text style={[styles.ownerText, { color: ownerStyle.text }]}>
           {formatOwnerLabel(owner)}
@@ -136,9 +146,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.bgCard,
     borderWidth: 1,
     borderColor: palette.border,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    minHeight: 88,
+    borderRadius: radius.lg,
+    padding: spacing.sm,
     overflow: 'hidden',
   },
   cardLow: {
@@ -156,6 +165,21 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.45,
+  },
+  thumbWrap: {
+    aspectRatio: 16 / 10,
+    width: '100%',
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    marginBottom: spacing.xs,
+    justifyContent: 'flex-end',
+    padding: spacing.xs,
+  },
+  thumbName: {
+    color: palette.text,
+    fontSize: typography.caption,
+    fontWeight: '800',
+    zIndex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -209,6 +233,19 @@ const styles = StyleSheet.create({
   meta: {
     color: palette.textSecondary,
     fontSize: typography.caption,
+    flex: 1,
+  },
+  personality: {
+    color: palette.textMuted,
+    fontSize: 9,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  movesLabel: {
+    color: palette.gold,
+    fontSize: 9,
+    fontWeight: '700',
+    marginTop: 2,
   },
   cost: {
     color: palette.text,

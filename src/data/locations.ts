@@ -235,12 +235,12 @@ export const LEGACY_LOCATION_TO_CITY_AREA: Record<
   { cityId: string; areaId: AreaId }
 > = {
   downtown: { cityId: 'new_york', areaId: 'new_york_downtown' },
-  projects: { cityId: 'new_york', areaId: 'new_york_harlem' },
+  projects: { cityId: 'new_york', areaId: 'new_york_brooklyn' },
   suburbs: { cityId: 'miami', areaId: 'miami_port' },
-  nightclub_district: { cityId: 'miami', areaId: 'miami_beach_district' },
+  nightclub_district: { cityId: 'miami', areaId: 'miami_south_beach' },
   college_area: { cityId: 'boston', areaId: 'boston_cambridge' },
-  industrial_zone: { cityId: 'detroit', areaId: 'detroit_industrial' },
-  airport: { cityId: 'new_york', areaId: 'new_york_queens' },
+  industrial_zone: { cityId: 'detroit', areaId: 'detroit_industrial_zone' },
+  airport: { cityId: 'new_york', areaId: 'new_york_harbor' },
 };
 
 export const LEGACY_LOCATIONS: Location[] = [

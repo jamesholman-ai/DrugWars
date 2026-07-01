@@ -49,7 +49,7 @@ export function OperationsDashboardScreen({ navigation }: Props) {
   const storyComplete = isStoryCampaignComplete(gameState);
   const todaysDaily = (dailyObjectives ?? []).filter((o) => o.generatedDay === player.day);
   const claimable = (completedMissions ?? []).filter((m) => !m.claimed);
-  const topIntel = getTopActiveIntel(gameState);
+  const topIntel = getTopActiveIntel(gameState, 1)[0];
   const contracts = activeContracts ?? [];
   const suppliers = supplierOffers ?? [];
 

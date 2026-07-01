@@ -34,19 +34,19 @@ function s(
 
 export const SUPPLIERS: SupplierDefinition[] = [
   // New York
-  s('sup_ny_harlem_plug', 'Tee', 'street_plug', 'new_york', 'new_york_harlem',
+  s('sup_ny_harlem_plug', 'Tee', 'street_plug', 'new_york', 'new_york_brooklyn',
     ['weed', 'crack'], 0.12, 72, 2, 3, {}, 'Corner plug on 125th. Moves green and hard.'),
   s('sup_ny_downtown_club', 'Vix', 'club_supplier', 'new_york', 'new_york_downtown',
     ['cocaine', 'ketamine', 'mdma'], 0.1, 85, 4, 2, { minReputation: 15 },
     'VIP room connect. Premium product, premium discretion.'),
-  s('sup_ny_queens_courier', 'Marco', 'airport_courier', 'new_york', 'new_york_queens',
+  s('sup_ny_queens_courier', 'Marco', 'airport_courier', 'new_york', 'new_york_harbor',
     ['cocaine', 'heroin', 'hashish'], 0.08, 78, 3, 4, { minRank: 'runner' },
     'Runs product through JFK corridors. High heat, fast lanes.', 2000),
   // Miami
   s('sup_miami_port', 'El Flaco', 'port_contact', 'miami', 'miami_port',
     ['cocaine', 'crack', 'heroin'], 0.18, 80, 4, 3, { minReputation: 20 },
     'Dockside contact. Import prices on the water.'),
-  s('sup_miami_beach_club', 'Luna', 'club_supplier', 'miami', 'miami_beach_district',
+  s('sup_miami_beach_club', 'Luna', 'club_supplier', 'miami', 'miami_south_beach',
     ['mdma', 'cocaine', 'ketamine'], 0.11, 88, 4, 2, {},
     'South Beach nightlife pipeline. Party product moves fast.'),
   s('sup_miami_cartel', 'Compadre Rios', 'cartel_supplier', 'miami', 'miami_little_havana',
@@ -56,10 +56,10 @@ export const SUPPLIERS: SupplierDefinition[] = [
   s('sup_la_hollywood', 'Dash', 'club_supplier', 'los_angeles', 'los_angeles_hollywood',
     ['cocaine', 'mdma', 'ketamine'], 0.1, 82, 4, 2, { minReputation: 18 },
     'Studio parties and after-hours. Hollywood markup avoided.'),
-  s('sup_la_south_central', 'Big Tone', 'street_plug', 'los_angeles', 'los_angeles_south_central',
+  s('sup_la_south_central', 'Big Tone', 'street_plug', 'los_angeles', 'los_angeles_compton',
     ['crack', 'weed', 'meth'], 0.14, 68, 2, 4, {},
     'South Central corners. Cheap but unpredictable.'),
-  s('sup_la_port', 'Harbor Mike', 'port_contact', 'los_angeles', 'los_angeles_port',
+  s('sup_la_port', 'Harbor Mike', 'port_contact', 'los_angeles', 'los_angeles_harbor',
     ['meth', 'heroin', 'cocaine'], 0.16, 75, 3, 3, { minRank: 'runner' },
     'Long Beach lanes. Bulk import pricing.'),
   // Atlanta

@@ -69,6 +69,8 @@ export interface EventContext {
 export interface EventChoice {
   id: string;
   label: string;
+  /** When set, choice is visible but cannot be selected. */
+  lockedReason?: string;
 }
 
 export interface GameEventNpc {

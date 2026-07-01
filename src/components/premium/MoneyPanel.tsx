@@ -1,15 +1,16 @@
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AccentTone, accentMap, palette, radius, shadows, spacing, typography } from '../../theme/theme';
 import { AnimatedMoney } from './AnimatedMoney';
+import { AccentTone, accentMap, palette, radius, shadows, spacing, typography } from '../../theme/theme';
+import { AppIcon, IconName, isIconName } from '../../theme/icons';
 
 interface MoneyPanelProps {
   label: string;
   amount: string;
   amountValue?: number;
   tone?: AccentTone;
-  icon?: string;
+  icon?: IconName | string;
   style?: ViewStyle;
   hero?: boolean;
 }
@@ -51,7 +52,13 @@ export function MoneyPanel({
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
-      {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+      {icon ? (
+        isIconName(icon) ? (
+          <AppIcon name={icon} size={20} color={accent.text} style={styles.iconSpacing} />
+        ) : (
+          <Text style={styles.icon}>{icon}</Text>
+        )
+      ) : null}
       <Text style={styles.label}>{label}</Text>
       {amountValue != null ? (
         <AnimatedMoney
@@ -95,6 +102,9 @@ const styles = StyleSheet.create({
   },
   icon: {
     fontSize: 20,
+    marginBottom: 4,
+  },
+  iconSpacing: {
     marginBottom: 4,
   },
   label: {

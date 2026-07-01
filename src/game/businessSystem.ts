@@ -1,13 +1,15 @@
 import { GameState } from '../types/game';
 import {
+  BusinessDefinition,
   BusinessHistoryEntry,
   BusinessRaidRecord,
   DaySummary,
   OwnedBusiness,
 } from '../types/businesses';
 import { RankId } from '../types/progression';
-import { BUSINESSES, BUSINESS_MAP, BUSINESS_REPAIR_COST } from '../data/businesses';
+import { BUSINESS_REPAIR_COST, BUSINESS_MAP } from '../data/businesses';
 import { RANKS } from '../data/progression';
+import { getMaxBusinessTier } from '../data/rankBenefits';
 import { isCityUnlocked, applyProgressionAfterAction } from './progression';
 import { withMessage, withMessages } from './messages';
 import { createDefaultOwnedBusinessFields, normalizeOwnedBusiness, migrateBusinessUpgrades } from './empireDefaults';
@@ -24,12 +26,18 @@ import {
 } from './money';
 import { trackMissionEvent } from './missionSystem';
 import { getDailyPayroll } from './crewBonuses';
-import { getDailySafehouseUpkeep } from './safehouseSystem';
+import { getDailySafehouseUpkeep, getDailyPropertyRent } from './safehouseSystem';
 import {
   getStoreInventory,
   hasBusinessRaidProtection,
   withStoreInventory,
 } from './storeInventory';
+import {
+  getBusinessDef,
+  getBusinessesAtLocationFromPool,
+  refreshBusinessListings,
+} from './businessPoolSystem';
+import { parseGeneratedBusinessId } from './businessGenerator';
 
 const MAX_HISTORY = 25;
 const MAX_RAIDS = 10;
@@ -43,7 +51,7 @@ function conditionMult(condition: number): number {
   return clamp(condition / 100, 0.1, 1);
 }
 
-export function meetsBusinessUnlock(state: GameState, def: typeof BUSINESSES[0]): boolean {
+export function meetsBusinessUnlock(state: GameState, def: BusinessDefinition): boolean {
   if (!isCityUnlocked(state, def.cityId)) return false;
   if (def.requiredRank && rankIndex(state.progression.rankId) < rankIndex(def.requiredRank)) {
     return false;
@@ -51,6 +59,8 @@ export function meetsBusinessUnlock(state: GameState, def: typeof BUSINESSES[0])
   if (def.requiredReputation != null && state.player.reputation < def.requiredReputation) {
     return false;
   }
+  const tier = def.tier ?? 1;
+  if (tier > getMaxBusinessTier(state)) return false;
   return true;
 }
 
@@ -59,7 +69,11 @@ export function isBusinessOwned(state: GameState, businessId: string): boolean {
 }
 
 export function getBusinessesAtLocation(state: GameState, cityId: string, areaId: string) {
-  return BUSINESSES.filter((b) => b.cityId === cityId && b.areaId === areaId);
+  return getBusinessesAtLocationFromPool(state, cityId, areaId);
+}
+
+export function refreshBusinessListingsAtLocation(state: GameState): GameState {
+  return refreshBusinessListings(state, { force: true });
 }
 
 export function getOwnedBusinessRecord(
@@ -99,7 +113,7 @@ export function getTotalBusinessUpkeep(state: GameState): number {
 export function getTotalBusinessHeatReduction(state: GameState): number {
   let total = 0;
   for (const owned of state.ownedBusinesses ?? []) {
-    const def = BUSINESS_MAP[owned.businessId];
+    const def = getBusinessDef(state, owned.businessId);
     if (!def || owned.condition <= 0) continue;
     total += Math.round(def.heatReductionPerDay * conditionMult(owned.condition));
   }
@@ -112,7 +126,7 @@ export function getAverageBusinessRisk(state: GameState): number {
   let sum = 0;
   let count = 0;
   for (const o of owned) {
-    const def = BUSINESS_MAP[o.businessId];
+    const def = getBusinessDef(state, o.businessId);
     if (!def) continue;
     sum += def.riskLevel;
     count++;
@@ -121,7 +135,7 @@ export function getAverageBusinessRisk(state: GameState): number {
 }
 
 export function purchaseBusiness(state: GameState, businessId: string): GameState {
-  const def = BUSINESS_MAP[businessId];
+  const def = getBusinessDef(state, businessId);
   if (!def) return withMessage(state, 'Unknown business.');
 
   if (isBusinessOwned(state, businessId)) {
@@ -170,7 +184,7 @@ export function purchaseBusiness(state: GameState, businessId: string): GameStat
 
 export function repairBusiness(state: GameState, businessId: string): GameState {
   const owned = getOwnedBusinessRecord(state, businessId);
-  const def = BUSINESS_MAP[businessId];
+  const def = getBusinessDef(state, businessId);
   if (!owned || !def) return withMessage(state, 'Business not found.');
 
   if (owned.condition >= 100) {
@@ -216,7 +230,7 @@ function rollBusinessRaids(
   if (random() > raidChance) return { state, raids: [], dirtySeized: 0 };
 
   const target = owned[Math.floor(random() * owned.length)];
-  const def = BUSINESS_MAP[target.businessId];
+  const def = getBusinessDef(state, target.businessId);
   if (!def) return { state, raids: [], dirtySeized: 0 };
 
   const damage = random() < 0.5 ? 15 : 25;
@@ -292,7 +306,7 @@ export function tickBusinessesOnDayAdvance(
   const logLines: string[] = [];
 
   for (const record of owned) {
-    const def = BUSINESS_MAP[record.businessId];
+    const def = getBusinessDef(state, record.businessId);
     if (!def) {
       nextOwned.push(record);
       continue;
@@ -373,6 +387,7 @@ export function tickBusinessesOnDayAdvance(
     day: state.player.day,
     payroll: getDailyPayroll(state),
     safehouseUpkeep: getDailySafehouseUpkeep(state),
+    propertyRent: getDailyPropertyRent(state),
     businessIncome: totalIncome,
     businessUpkeep: totalUpkeep,
     laundered: totalLaundered,
@@ -429,6 +444,7 @@ function buildPartialSummary(state: GameState, extra: Partial<DaySummary>): DayS
     day: state.player.day,
     payroll: getDailyPayroll(state),
     safehouseUpkeep: getDailySafehouseUpkeep(state),
+    propertyRent: getDailyPropertyRent(state),
     businessIncome: 0,
     businessUpkeep: 0,
     laundered: 0,
@@ -459,7 +475,7 @@ export function migrateOwnedBusinesses(raw: unknown): OwnedBusiness[] {
     if (typeof entry !== 'object' || entry === null) continue;
     const e = entry as Record<string, unknown>;
     const id = typeof e.businessId === 'string' ? e.businessId : '';
-    if (!BUSINESS_MAP[id]) continue;
+    if (!BUSINESS_MAP[id] && !parseGeneratedBusinessId(id) && !id.startsWith('biz_')) continue;
     result.push(normalizeOwnedBusiness({
       businessId: id,
       purchasedDay: typeof e.purchasedDay === 'number' ? e.purchasedDay : 1,
@@ -510,6 +526,7 @@ export function migrateDaySummary(raw: unknown): DaySummary | null {
     day: typeof e.day === 'number' ? e.day : 1,
     payroll: typeof e.payroll === 'number' ? e.payroll : 0,
     safehouseUpkeep: typeof e.safehouseUpkeep === 'number' ? e.safehouseUpkeep : 0,
+    propertyRent: typeof e.propertyRent === 'number' ? e.propertyRent : 0,
     businessIncome: typeof e.businessIncome === 'number' ? e.businessIncome : 0,
     businessUpkeep: typeof e.businessUpkeep === 'number' ? e.businessUpkeep : 0,
     laundered: typeof e.laundered === 'number' ? e.laundered : 0,

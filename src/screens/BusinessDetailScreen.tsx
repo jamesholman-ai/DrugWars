@@ -6,7 +6,8 @@ import { GameButton } from '../components/GameButton';
 import { AppShell, ScreenHeader, SectionCard } from '../components/ui';
 import { EmpireBusinessCard, EmpireEventTimeline } from '../components/premium';
 import { useGame } from '../game/GameContext';
-import { BUSINESS_MAP, BUSINESS_REPAIR_COST, BUSINESS_TYPE_LABELS } from '../data/businesses';
+import { BUSINESS_REPAIR_COST, BUSINESS_TYPE_LABELS } from '../data/businesses';
+import { getBusinessDef } from '../game/businessPoolSystem';
 import {
   BUSINESS_UPGRADE_LABELS,
   getBusinessUpgradeCost,
@@ -43,7 +44,7 @@ export function BusinessDetailScreen({ navigation, route }: Props) {
   if (!gameState) return null;
 
   const record = getBusinessRecord(gameState, businessId);
-  const def = BUSINESS_MAP[businessId];
+  const def = getBusinessDef(gameState, businessId);
   const { player } = gameState;
   const rank = getCurrentRank(gameState);
   const manager = record ? getAssignedManagerForBusiness(gameState, businessId) : undefined;
@@ -84,7 +85,7 @@ export function BusinessDetailScreen({ navigation, route }: Props) {
       <EmpireBusinessCard state={gameState} record={record} />
 
       <SectionCard title="Front Story" tone="amber">
-        <Text style={styles.line}>{getBusinessStoryLine(record)}</Text>
+        <Text style={styles.line}>{getBusinessStoryLine(gameState, record)}</Text>
       </SectionCard>
 
       <SectionCard title="Daily Summary">

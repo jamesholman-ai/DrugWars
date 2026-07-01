@@ -1,7 +1,8 @@
+import { GameState } from '../types/game';
 import { HiredCrewMember } from '../types/crew';
 import { OwnedBusiness } from '../types/businesses';
 import { OwnedSafehouse } from '../types/safehouses';
-import { BUSINESS_MAP } from '../data/businesses';
+import { getBusinessDef } from './businessPoolSystem';
 import { SAFEHOUSE_MAP } from '../data/safehouses';
 import { AREA_MAP } from '../data/locations';
 import { appendEmpireEvent } from './empireDefaults';
@@ -47,8 +48,8 @@ export function getPropertyAtmosphereSummary(record: OwnedSafehouse): string[] {
   return lines;
 }
 
-export function getBusinessStoryLine(record: OwnedBusiness): string {
-  const def = BUSINESS_MAP[record.businessId];
+export function getBusinessStoryLine(state: GameState, record: OwnedBusiness): string {
+  const def = getBusinessDef(state, record.businessId);
   const last = record.recentEvents?.[0];
   if (last) return last.message;
   if (record.condition < 40) return `${def?.name ?? 'Front'} struggling — needs repair.`;

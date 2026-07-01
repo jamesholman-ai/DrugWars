@@ -1,5 +1,7 @@
 import { CommodityId } from './game';
 
+export type IntelCategory = 'market' | 'police' | 'travel' | 'empire' | 'rumor';
+
 export type IntelSource =
   | 'street'
   | 'informant'
@@ -38,6 +40,8 @@ export interface IntelEntry {
   cityId?: string;
   areaId?: string;
   direction?: 'buy' | 'sell';
+  category?: IntelCategory;
+  confidence?: 'high' | 'low';
 }
 
 export const INTEL_SOURCE_LABELS: Record<IntelSource, string> = {

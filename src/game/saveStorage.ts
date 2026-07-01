@@ -76,9 +76,19 @@ import { MAX_ACTIVE_WORLD_EVENTS } from '../data/worldEvents';
 import { migrateStoreInventory } from './storeInventory';
 import { migrateLegacyProgression } from './progression';
 import { createDefaultFinanceFields, migrateFinanceLog } from './financeSystem';
+import {
+  migrateDistrictBusinessListings,
+  warmBusinessCache,
+} from './businessPoolSystem';
+import { migrateDistrictCrewListings } from './crewPoolSystem';
+import {
+  migrateDistrictPropertyListings,
+  warmPropertyCache,
+} from './propertyPoolSystem';
+import { hashCombine } from '../utils/hash';
 
 export const SAVE_KEY = '@neon_underworld/save';
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 14;
 
 export interface SaveEnvelope {
   version: number;
@@ -90,6 +100,19 @@ const VALID_COMMODITY_IDS = new Set<string>(COMMODITIES.map((c) => c.id));
 const VALID_AREA_KEYS = new Set<string>(getAllAreaKeys());
 const VALID_WORLD_EVENT_TYPES = new Set<string>([
   'market_shortage',
+  'local_shortage',
+  'city_shortage',
+  'regional_shortage',
+  'local_surplus',
+  'city_surplus',
+  'bad_batch',
+  'dea_raid',
+  'police_warehouse_break_in',
+  'gang_war_supply_block',
+  'cartel_dumping_product',
+  'festival_demand_surge',
+  'port_seizure',
+  'smuggling_route_opened',
   'police_crackdown',
   'gang_war',
   'market_boom',
@@ -441,6 +464,12 @@ function migratePlayer(raw: unknown): PlayerState {
       legalDefaults.debtCollectorWarnings,
       0
     ),
+    homeBaseId:
+      typeof raw.homeBaseId === 'string'
+        ? raw.homeBaseId
+        : raw.homeBaseId === null
+          ? null
+          : undefined,
   });
 }
 
@@ -533,11 +562,17 @@ export function migrateGameState(raw: unknown): GameState | null {
   const crewHistory = migrateCrewHistory(
     isRecord(stateRaw) ? stateRaw.crewHistory : undefined
   );
+  const provisionalRunSeed =
+    isRecord(stateRaw) && typeof stateRaw.runSeed === 'number' && stateRaw.runSeed > 0
+      ? stateRaw.runSeed
+      : hashCombine('migrate', player.day, progression.lifetimeProfit, 0);
   const ownedSafehouses = migrateOwnedSafehouses(
-    isRecord(stateRaw) ? stateRaw.ownedSafehouses : undefined
+    isRecord(stateRaw) ? stateRaw.ownedSafehouses : undefined,
+    provisionalRunSeed
   );
   const storedInventoryBySafehouse = migrateStoredInventory(
-    isRecord(stateRaw) ? stateRaw.storedInventoryBySafehouse : undefined
+    isRecord(stateRaw) ? stateRaw.storedInventoryBySafehouse : undefined,
+    ownedSafehouses.map((o) => o.safehouseId)
   );
   const ownedBusinesses = migrateOwnedBusinesses(
     isRecord(stateRaw) ? stateRaw.ownedBusinesses : undefined
@@ -641,6 +676,19 @@ export function migrateGameState(raw: unknown): GameState | null {
         ? stateRaw.lastAreaMoveDay
         : financeDefaults.lastAreaMoveDay,
     financeLog: migrateFinanceLog(isRecord(stateRaw) ? stateRaw.financeLog : undefined),
+    runSeed:
+      isRecord(stateRaw) && typeof stateRaw.runSeed === 'number' && stateRaw.runSeed > 0
+        ? stateRaw.runSeed
+        : hashCombine('migrate', player.day, progression.lifetimeProfit, ownedBusinesses.length),
+    districtBusinessListings: migrateDistrictBusinessListings(
+      isRecord(stateRaw) ? stateRaw.districtBusinessListings : undefined
+    ),
+    districtCrewListings: migrateDistrictCrewListings(
+      isRecord(stateRaw) ? stateRaw.districtCrewListings : undefined
+    ),
+    districtPropertyListings: migrateDistrictPropertyListings(
+      isRecord(stateRaw) ? stateRaw.districtPropertyListings : undefined
+    ),
   };
 
   if (!CITY_MAP[migrated.player.currentCityId]) {
@@ -660,6 +708,8 @@ export function migrateGameState(raw: unknown): GameState | null {
   }
 
   let normalized = normalizeGameState(migrated);
+  warmBusinessCache(normalized);
+  warmPropertyCache(normalized);
   normalized = migrateIntelFromLegacy(normalized, activePriceTips);
 
   const needsMissionInit =

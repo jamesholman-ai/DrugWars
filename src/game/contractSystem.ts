@@ -1,11 +1,12 @@
 import { GameState, CommodityId, InventoryItem } from '../types/game';
 import { BuyerContract, BuyerType, ContractStatus } from '../types/contracts';
 import { RankId } from '../types/progression';
+import { BALANCE } from '../data/balanceConfig';
+import { getMaxActiveContracts } from '../data/rankBenefits';
 import {
   BUYER_NAMES,
   BUYER_TYPE_LABELS,
   CONTRACT_DRUGS_BY_BUYER,
-  MAX_ACTIVE_CONTRACTS,
   MAX_CONTRACT_HISTORY,
   MAX_CONTRACT_OFFERS,
 } from '../data/contracts';
@@ -66,7 +67,9 @@ function generateContractOffer(state: GameState): BuyerContract | null {
   const qty = randomInt(3, 8 + Math.floor(rankIndex(progression.rankId) * 2));
   const basePrice =
     (state.marketPrices[`${cityId}:${area.id}`]?.[requestedDrug] ?? 100) * qty;
-  const payout = Math.round(basePrice * (1.38 + Math.random() * 0.42) * repFactor);
+  const payout = Math.round(
+    basePrice * (1.26 + Math.random() * 0.28) * repFactor * BALANCE.contractPayoutScale
+  );
   const deadlineDay = player.day + randomInt(2, 5 + Math.floor(rankIndex(progression.rankId)));
   const reputationReward = Math.min(12, 2 + Math.floor(payout / 800));
   const heatRisk = Math.min(15, 3 + Math.floor(payout / 1500) + Math.floor(qty / 4));
@@ -119,8 +122,9 @@ export function acceptContract(state: GameState, contractId: string): GameState 
   const offer = (state.contractOffers ?? []).find((c) => c.id === contractId);
   if (!offer) return withMessage(state, 'Contract not found.');
 
-  if ((state.activeContracts ?? []).length >= MAX_ACTIVE_CONTRACTS) {
-    return withMessage(state, `Max ${MAX_ACTIVE_CONTRACTS} active contracts. Complete one first.`);
+  const maxActive = getMaxActiveContracts(state);
+  if ((state.activeContracts ?? []).length >= maxActive) {
+    return withMessage(state, `Max ${maxActive} active contracts. Complete one first.`);
   }
 
   const active: BuyerContract = {

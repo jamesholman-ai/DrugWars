@@ -1,7 +1,7 @@
 import { GameState } from '../types/game';
 import { OwnedBusiness } from '../types/businesses';
 import { BusinessUpgradeKind } from '../types/empire';
-import { BUSINESS_MAP } from '../data/businesses';
+import { getBusinessDef } from './businessPoolSystem';
 import {
   BUSINESS_UPGRADE_LABELS,
   getBusinessUpgradeCost,
@@ -29,7 +29,7 @@ export function getBusinessRecord(state: GameState, businessId: string): OwnedBu
 }
 
 export function getEffectiveBusinessStats(state: GameState, record: OwnedBusiness) {
-  const def = BUSINESS_MAP[record.businessId];
+  const def = getBusinessDef(state, record.businessId);
   if (!def) {
     return {
       income: 0,
@@ -68,7 +68,7 @@ export function upgradeBusiness(
   kind: BusinessUpgradeKind
 ): GameState {
   const record = getBusinessRecord(state, businessId);
-  const def = BUSINESS_MAP[businessId];
+  const def = getBusinessDef(state, businessId);
   if (!record || !def) return withMessage(state, 'Business not found.');
   if (record.condition <= 0) return withMessage(state, 'Repair the business first.');
 
@@ -131,7 +131,7 @@ export function assignBusinessManager(
 
 export function layLowThroughBusiness(state: GameState, businessId: string): GameState {
   const record = getBusinessRecord(state, businessId);
-  const def = BUSINESS_MAP[businessId];
+  const def = getBusinessDef(state, businessId);
   if (!record || !def) return withMessage(state, 'Business not found.');
   const upgrades = migrateBusinessUpgrades(record.upgradeLevels);
   if (upgrades.legitimacy < 1) {
@@ -179,7 +179,7 @@ export function rollBusinessDailyEvents(
 
   for (const record of owned) {
     if (record.condition <= 0) continue;
-    const def = BUSINESS_MAP[record.businessId];
+    const def = getBusinessDef(state, record.businessId);
     if (!def) continue;
 
     const stats = getEffectiveBusinessStats(updated, record);

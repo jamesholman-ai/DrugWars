@@ -3,7 +3,7 @@ import { CityNewsEntry } from '../types/cityNews';
 import { WORLD_EVENT_TEMPLATE_MAP } from '../data/worldEvents';
 import { CITY_MAP, getAreaLabel, getPlayerAreaKey } from '../data/locations';
 import { COMMODITY_MAP } from '../data/commodities';
-import { BUSINESS_MAP } from '../data/businesses';
+import { getBusinessDef } from './businessPoolSystem';
 import { SAFEHOUSE_MAP } from '../data/safehouses';
 import { getReputationFlavor } from '../data/reputationFlavor';
 import { getMarketSentimentHeadline } from './marketSentiment';
@@ -120,7 +120,7 @@ export function buildCityNewsFeed(
 
   for (const record of state.ownedBusinesses ?? []) {
     for (const evt of (record.recentEvents ?? []).slice(0, 1)) {
-      const def = BUSINESS_MAP[record.businessId];
+      const def = getBusinessDef(state, record.businessId);
       pushUnique(entries, {
         id: `news_biz_${evt.id}`,
         day: evt.day,

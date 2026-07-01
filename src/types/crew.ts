@@ -49,6 +49,11 @@ export interface CrewRecruitOffer {
   expiresDay: number;
   minRank?: RankId;
   minReputation?: number;
+  /** Short flavor line for generated recruits. */
+  personalityLine?: string;
+  specialty?: string;
+  morale?: number;
+  stress?: number;
 }
 
 export interface HiredCrewMember {

@@ -28,6 +28,19 @@ import { FinanceLogEntry } from './finance';
 
 export type WorldEventType =
   | 'market_shortage'
+  | 'local_shortage'
+  | 'city_shortage'
+  | 'regional_shortage'
+  | 'local_surplus'
+  | 'city_surplus'
+  | 'bad_batch'
+  | 'dea_raid'
+  | 'police_warehouse_break_in'
+  | 'gang_war_supply_block'
+  | 'cartel_dumping_product'
+  | 'festival_demand_surge'
+  | 'port_seizure'
+  | 'smuggling_route_opened'
   | 'police_crackdown'
   | 'gang_war'
   | 'market_boom'
@@ -184,6 +197,8 @@ export interface PlayerState {
   daysInJail: number;
   /** Consecutive debt collector warnings ignored. */
   debtCollectorWarnings: number;
+  /** Primary base property for heat/robbery bonuses when traveling. */
+  homeBaseId?: string | null;
 }
 
 /** Keys are `${cityId}:${areaId}`. */
@@ -253,6 +268,14 @@ export interface GameState {
   lastAreaMoveDay?: number;
   /** Recent finance activity (newest first). */
   financeLog?: FinanceLogEntry[];
+  /** Deterministic seed for generated district content pools. */
+  runSeed?: number;
+  /** Visible generated business IDs per area key. */
+  districtBusinessListings?: Record<string, import('./businesses').DistrictListing>;
+  /** Visible generated crew template IDs per area key. */
+  districtCrewListings?: Record<string, import('./businesses').DistrictListing>;
+  /** Visible generated property IDs per area key. */
+  districtPropertyListings?: Record<string, import('./businesses').DistrictListing>;
 }
 
 export type RootStackParamList = {
@@ -260,7 +283,7 @@ export type RootStackParamList = {
   Home: undefined;
   Game: undefined;
   Market: undefined;
-  Travel: undefined;
+  Travel: { focus?: 'area' | 'city' } | undefined;
   Inventory: undefined;
   Contacts: undefined;
   Progress: undefined;
@@ -281,6 +304,12 @@ export type RootStackParamList = {
   CrewDetail: { crewId: string };
   BusinessDetail: { businessId: string };
   PropertyDetail: { safehouseId: string };
+  LocationIntro: {
+    cityId: string;
+    areaId: string;
+    day: number;
+    returnTo?: keyof RootStackParamList;
+  };
 };
 
 export function createDefaultHeatCooldowns(): HeatCooldowns {

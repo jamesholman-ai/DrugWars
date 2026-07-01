@@ -5,10 +5,23 @@ import { daysRemaining, eventAppliesToLocation } from '../../game/worldEvents';
 import { WorldEventBadge } from './WorldEventBadge';
 import { palette, radius, shadows, spacing, typography } from '../../theme/theme';
 
-const TYPE_LABEL: Record<WorldEventType, string> = {
+const TYPE_LABEL: Partial<Record<WorldEventType, string>> = {
   market_shortage: 'Shortage',
+  local_shortage: 'Local Shortage',
+  city_shortage: 'City Shortage',
+  regional_shortage: 'Regional Shortage',
   market_crash: 'Crash',
+  local_surplus: 'Local Surplus',
+  city_surplus: 'City Surplus',
   market_boom: 'Boom',
+  bad_batch: 'Bad Batch',
+  dea_raid: 'DEA Raid',
+  police_warehouse_break_in: 'Evidence Leak',
+  gang_war_supply_block: 'Supply Block',
+  cartel_dumping_product: 'Cartel Dump',
+  festival_demand_surge: 'Festival Surge',
+  port_seizure: 'Port Seizure',
+  smuggling_route_opened: 'Route Open',
   police_crackdown: 'Crackdown',
   gang_war: 'Gang War',
   airport_lockdown: 'Lockdown',

@@ -13,6 +13,10 @@ import {
 } from '../types/game';
 import { COMMODITIES, COMMODITY_MAP } from '../data/commodities';
 import {
+  hasLocalBuyers,
+  isDrugAvailableToBuy,
+} from './marketAvailabilitySystem';
+import {
   AREA_MAP,
   CITIES,
   CITY_MAP,
@@ -39,6 +43,8 @@ import { tickCrewEmpire, refreshCrewRecruits, applyCrewEncounterRisk } from './c
 import { tickSafehouseUpkeep, getSafehouseHeatDecayBonus } from './safehouseSystem';
 import { rollPropertyDailyEvents } from './propertyManagementSystem';
 import { tickBusinessesOnDayAdvance } from './businessSystem';
+import { refreshBusinessListings, createInitialRunSeed } from './businessPoolSystem';
+import { refreshPropertyListings } from './propertyPoolSystem';
 import { trackMissionEvent, tickMissionsOnDayAdvance, initializeMissionState, syncMissionState } from './missionSystem';
 import {
   initializeIntelState,
@@ -251,6 +257,7 @@ export function createInitialGameState(): GameState {
     ],
     tutorial: createDefaultTutorial(false),
     ...createDefaultFinanceFields(1),
+    runSeed: createInitialRunSeed(),
   };
   let stateWithMissions = initializeMissionState(state);
   stateWithMissions = initializeIntelState(stateWithMissions);
@@ -291,7 +298,9 @@ function finalizeAction(state: GameState, event?: MissionEvent): GameState {
 }
 
 function refreshDealsAtLocation(state: GameState): GameState {
-  let updated = refreshSupplierOffers(state);
+  let updated = refreshBusinessListings(state, { force: true });
+  updated = refreshPropertyListings(updated, { force: true });
+  updated = refreshSupplierOffers(updated);
   updated = generateContractOffers(updated);
   updated = refreshCrewRecruits(updated);
   return updated;
@@ -305,7 +314,7 @@ function tickEmpireBeforeDayAdvance(state: GameState): GameState {
   return updated;
 }
 
-function applyDailyUpkeep(player: PlayerState, extraHeatDecay = 0, debtRate = DAILY_DEBT_INTEREST): PlayerState {
+function applyDailyUpkeep(player: PlayerState, extraHeatDecay = 0, debtRate: number = DAILY_DEBT_INTEREST): PlayerState {
   const debtInterest = Math.floor(player.debt * debtRate);
   const updated: PlayerState = {
     ...player,
@@ -366,7 +375,12 @@ function advanceDayState(
   if (interest > 0) {
     updated = logDebtInterest(updated, interest);
   }
-  return resetAreaMovesOnDayAdvance(updated);
+  return resetAreaMovesOnDayAdvance({
+    ...updated,
+    districtBusinessListings: {},
+    districtCrewListings: {},
+    districtPropertyListings: {},
+  });
 }
 
 function heatFromTrade(
@@ -406,6 +420,13 @@ export function buyCommodity(
 
   if (!commodity || !price) {
     return withMessage(state, 'Cannot buy — price unavailable.');
+  }
+
+  if (!isDrugAvailableToBuy(state, commodityId)) {
+    return withMessage(
+      state,
+      `${commodity.name} is not available in this area today.`
+    );
   }
 
   const totalCost = price * quantity;
@@ -486,6 +507,10 @@ export function sellCommodity(
   const price = getCurrentPrices(state)?.[commodityId];
   if (!price || !commodity) {
     return withMessage(state, 'Cannot sell — price unavailable.');
+  }
+
+  if (!hasLocalBuyers(state, commodityId)) {
+    return withMessage(state, `No local buyer today for ${commodity.name}.`);
   }
 
   const dealerMult = 1 + getDealerSaleBonus(state);

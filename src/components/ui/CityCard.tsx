@@ -1,10 +1,14 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getCityMaster } from '../../assets/imageRegistry';
+import { SmartImageBackground } from '../aaa/SmartImageBackground';
+import { FIT_PRESETS } from '../aaa/imageFit';
 import { palette, radius, spacing, typography } from '../../theme/theme';
 import { WorldEventBadge } from './WorldEventBadge';
 
 interface CityCardProps {
+  cityId?: string;
   name: string;
   travelCost: number;
   riskLevel: 'low' | 'medium' | 'high';
@@ -24,6 +28,7 @@ const RISK_HEADER: Record<CityCardProps['riskLevel'], readonly [string, string]>
 };
 
 export function CityCard({
+  cityId,
   name,
   travelCost,
   riskLevel,
@@ -35,13 +40,29 @@ export function CityCard({
   onTravel,
   expanded,
 }: CityCardProps) {
+  const travelArt = cityId ? getCityMaster(cityId) : null;
+  const preset = FIT_PRESETS.travelCard;
+
   return (
     <Pressable
       style={[styles.card, isCurrent && styles.current, isLocked && styles.locked]}
       onPress={onPress}
       disabled={isLocked}
     >
-      <LinearGradient colors={[...RISK_HEADER[riskLevel]]} style={styles.headerGradient}>
+      <View style={styles.headerWrap}>
+        {travelArt ? (
+          <SmartImageBackground
+            source={travelArt.source}
+            resizeMode="cover"
+            focalPoint={preset.focalPoint}
+            sourceAspectRatio={travelArt.aspectRatio}
+            sourceNativeWidth={travelArt.nativeWidth}
+            overlay={false}
+            fill
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
+        <LinearGradient colors={[...RISK_HEADER[riskLevel]]} style={styles.headerGradient}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <Text style={styles.cityName}>{name}</Text>
@@ -54,11 +75,24 @@ export function CityCard({
           <Text style={styles.costValue}>${travelCost.toLocaleString()}</Text>
         </View>
       </LinearGradient>
+      </View>
 
       {expanded ? (
         <View style={styles.body}>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Travel cost</Text>
+              <Text style={styles.statValueGreen}>${travelCost.toLocaleString()}</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Risk level</Text>
+              <Text style={[styles.statValueRisk, riskLevel === 'low' && styles.riskLow, riskLevel === 'medium' && styles.riskMed, riskLevel === 'high' && styles.riskHigh]}>
+                {riskLevel.toUpperCase()}
+              </Text>
+            </View>
+          </View>
           <View style={styles.intelChip}>
-            <Text style={styles.intelLabel}>Cheap here</Text>
+            <Text style={styles.intelLabel}>Specialty (cheap here)</Text>
             <Text style={styles.intelValue} numberOfLines={2}>
               {specialtyDrugs.length ? specialtyDrugs.join(' · ') : '—'}
             </Text>
@@ -71,7 +105,7 @@ export function CityCard({
           </View>
           {onTravel && !isCurrent && !isLocked ? (
             <Pressable style={styles.travelBtn} onPress={onTravel}>
-              <Text style={styles.travelBtnText}>Travel to {name}</Text>
+              <Text style={styles.travelBtnText}>TRAVEL TO {name.toUpperCase()}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -104,10 +138,18 @@ const styles = StyleSheet.create({
   locked: {
     opacity: 0.5,
   },
-  headerGradient: {
-    padding: spacing.md,
+  headerWrap: {
+    aspectRatio: 16 / 10,
+    width: '100%',
+    overflow: 'hidden',
     borderBottomWidth: 1,
     borderBottomColor: palette.border,
+    backgroundColor: palette.bgCard,
+  },
+  headerGradient: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: spacing.md,
   },
   headerRow: {
     flexDirection: 'row',
@@ -157,6 +199,35 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
   },
+  statsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: palette.bgCardHover,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  statLabel: {
+    color: palette.textMuted,
+    fontSize: typography.caption,
+    marginBottom: 4,
+  },
+  statValueGreen: {
+    color: palette.neon,
+    fontSize: typography.subtitle,
+    fontWeight: '800',
+  },
+  statValueRisk: {
+    fontSize: typography.subtitle,
+    fontWeight: '800',
+  },
+  riskLow: { color: palette.neon },
+  riskMed: { color: palette.amber },
+  riskHigh: { color: palette.danger },
   intelChip: {
     backgroundColor: palette.bgCardHover,
     borderWidth: 1,

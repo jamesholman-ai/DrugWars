@@ -1,5 +1,6 @@
 import { Commodity, CommodityId, PriceTrend } from '../types/game';
 import { CityAreaDefinition, CityDefinition } from '../types/game';
+import { BALANCE } from '../data/balanceConfig';
 
 export function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -34,8 +35,13 @@ export function generateCommodityPrice(
   commodity: Commodity,
   city: CityDefinition,
   area: CityAreaDefinition,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  options: { volatilityScale?: number; extremeSpikeChance?: number; extremeCrashChance?: number } = {}
 ): number {
+  const volatilityScale = options.volatilityScale ?? BALANCE.priceVolatility;
+  const extremeSpikeChance = options.extremeSpikeChance ?? BALANCE.extremeSpikeChance;
+  const extremeCrashChance = options.extremeCrashChance ?? BALANCE.extremeCrashChance;
+  const vol = commodity.volatility * volatilityScale;
   const demandMod = area.demandModifiers[commodity.id] ?? 1;
   const cityMult = cityDrugMultiplier(commodity.id, city);
   const baseMin = commodity.minPrice * city.priceModifier * area.priceModifier * demandMod;
@@ -47,13 +53,13 @@ export function generateCommodityPrice(
   const roll = random();
   let t: number;
 
-  if (roll < commodity.volatility * 0.22) {
+  if (roll < vol * 0.22) {
     t = random() * 0.18;
-  } else if (roll > 1 - commodity.volatility * 0.22) {
+  } else if (roll > 1 - vol * 0.22) {
     t = 0.82 + random() * 0.18;
-  } else if (roll < commodity.volatility * 0.12) {
+  } else if (roll < vol * 0.12) {
     t = random() * 0.35;
-  } else if (roll > 1 - commodity.volatility * 0.12) {
+  } else if (roll > 1 - vol * 0.12) {
     t = 0.65 + random() * 0.35;
   } else {
     t = 0.25 + random() * 0.5;
@@ -61,30 +67,29 @@ export function generateCommodityPrice(
 
   let price = locMin + t * Math.max(locMax - locMin, 1);
 
-  if (random() < 0.06) {
-    price *= 3 + random() * 7;
-  } else if (random() < 0.08) {
-    price *= 0.2 + random() * 0.4;
+  if (random() < extremeSpikeChance) {
+    price *= 2.5 + random() * 5;
+  } else if (random() < extremeCrashChance) {
+    price *= 0.25 + random() * 0.35;
   }
 
   return Math.max(1, Math.round(price));
 }
 
+import {
+  getMarketTrend,
+  getMarketTrendArrowSymbol,
+  getPreviousKnownPrice,
+} from '../game/marketTrend';
+
 export function computePriceTrend(
   current: number,
   history: number[] | undefined
 ): PriceTrend {
-  if (!history || history.length < 2) return 'flat';
-  const prev = history[history.length - 2];
-  if (prev <= 0) return 'flat';
-  const delta = (current - prev) / prev;
-  if (delta >= 0.08) return 'up';
-  if (delta <= -0.08) return 'down';
-  return 'flat';
+  const previousPrice = getPreviousKnownPrice(history);
+  return getMarketTrend(current, previousPrice);
 }
 
 export function trendArrow(trend: PriceTrend): string {
-  if (trend === 'up') return '▲';
-  if (trend === 'down') return '▼';
-  return '◆';
+  return getMarketTrendArrowSymbol(trend);
 }

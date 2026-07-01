@@ -8,6 +8,8 @@ import {
 } from '../types/game';
 import { EventType } from '../types/events';
 import { COMMODITIES } from '../data/commodities';
+import { pickPriceDropScenario } from '../data/priceDropScenarios';
+import { pickPriceSpikeScenario } from '../data/priceSpikeScenarios';
 import { getAllAreaKeys, getPlayerAreaKey, parseAreaKey } from '../data/locations';
 import { isAirportArea } from '../data/areas';
 import {
@@ -130,11 +132,34 @@ function spawnWorldEvent(
     affectedCommodities = pickSubset(template.commodityPool, count, random);
   }
 
+  const loc = affectedLocations[0] ? parseAreaKey(affectedLocations[0]) : null;
+  const spikeTypes = new Set([
+    'market_shortage', 'local_shortage', 'city_shortage', 'regional_shortage',
+    'bad_batch', 'dea_raid', 'gang_war_supply_block', 'port_seizure', 'market_boom', 'festival_demand_surge',
+  ]);
+  const dropTypes = new Set([
+    'market_crash', 'supplier_flood', 'local_surplus', 'city_surplus',
+    'police_warehouse_break_in', 'cartel_dumping_product', 'smuggling_route_opened',
+  ]);
+  let description = template.description;
+  const drug = affectedCommodities[0];
+  const ctx = {
+    drug,
+    cityId: loc?.cityId,
+    areaId: loc?.areaId,
+    days: duration,
+  };
+  if (drug && spikeTypes.has(template.type)) {
+    description = pickPriceSpikeScenario(random, ctx);
+  } else if (drug && dropTypes.has(template.type)) {
+    description = pickPriceDropScenario(random, ctx);
+  }
+
   return {
     id: `we_${startDay}_${template.type}_${randomInt(1000, 9999)}`,
     type: template.type,
     title: template.title,
-    description: template.description,
+    description,
     affectedLocations,
     affectedCommodities,
     durationDays: duration,

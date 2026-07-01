@@ -1,12 +1,13 @@
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { AccentTone, accentMap, palette, radius, spacing, typography } from '../../theme/theme';
+import { AppIcon, IconName, isIconName } from '../../theme/icons';
 
 interface StatChipProps {
   label: string;
   value: string;
   tone?: AccentTone;
-  icon?: string;
+  icon?: IconName | string;
   style?: ViewStyle;
 }
 
@@ -20,7 +21,13 @@ export function StatChip({ label, value, tone = 'neutral', icon, style }: StatCh
         style,
       ]}
     >
-      {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+      {icon ? (
+        isIconName(icon) ? (
+          <AppIcon name={icon} size={16} color={accent.text} style={styles.iconSpacing} />
+        ) : (
+          <Text style={styles.icon}>{icon}</Text>
+        )
+      ) : null}
       <Text style={styles.label}>{label}</Text>
       <Text style={[styles.value, { color: accent.text }]} numberOfLines={1}>
         {value}
@@ -41,6 +48,9 @@ const styles = StyleSheet.create({
   },
   icon: {
     fontSize: 16,
+    marginBottom: 2,
+  },
+  iconSpacing: {
     marginBottom: 2,
   },
   label: {

@@ -3,12 +3,13 @@ import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AccentTone, accentMap, palette, radius, shadows, spacing, typography } from '../../theme/theme';
 import { PressableCard } from './PressableCard';
+import { AppIcon, IconName, isIconName } from '../../theme/icons';
 
 interface DashboardCardProps {
   title: string;
   value: string;
   subtitle?: string;
-  icon?: string;
+  icon?: IconName | string;
   tone?: AccentTone;
   onPress?: () => void;
   style?: ViewStyle;
@@ -34,7 +35,13 @@ function DashboardCardInner({
         end={{ x: 1, y: 1 }}
       />
       <View style={styles.header}>
-        {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+        {icon ? (
+          isIconName(icon) ? (
+            <AppIcon name={icon} size={14} color={accent.text} />
+          ) : (
+            <Text style={styles.icon}>{icon}</Text>
+          )
+        ) : null}
         <Text style={[styles.title, { color: accent.text }]}>{title}</Text>
       </View>
       <Text style={styles.value}>{value}</Text>

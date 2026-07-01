@@ -13,6 +13,7 @@ export { PlayerMoneyRow } from './PlayerMoneyRow';
 export { SectionCard } from './SectionCard';
 export { SupplierOfferCard } from './SupplierOfferCard';
 export { ContractCard } from './ContractCard';
+export { FilterChips, type FilterChipOption } from './FilterChips';
 
 export {
   PremiumBackground,

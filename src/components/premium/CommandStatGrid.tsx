@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AnimatedMoney } from './AnimatedMoney';
-import { AppIcons } from '../../theme/icons';
+import { AppIcon, AppIcons, IconName } from '../../theme/icons';
 import { palette, radius, shadows, spacing, typography } from '../../theme/theme';
 
 interface CommandStatGridProps {
@@ -14,6 +14,15 @@ interface CommandStatGridProps {
   onHeatPress?: () => void;
   onReputationPress?: () => void;
   onNetWorthPress?: () => void;
+}
+
+function StatLabel({ icon, label }: { icon: IconName; label: string }) {
+  return (
+    <View style={styles.labelRow}>
+      <AppIcon name={icon} size={12} color={palette.textMuted} />
+      <Text style={styles.label}>{label}</Text>
+    </View>
+  );
 }
 
 function CommandStatGridInner({
@@ -30,20 +39,20 @@ function CommandStatGridInner({
   return (
     <View style={styles.grid}>
       <Pressable style={styles.stat} onPress={onCashPress} accessibilityLabel={`Cash ${cash}`}>
-        <Text style={styles.label}>{AppIcons.money} CASH</Text>
+        <StatLabel icon={AppIcons.money} label="CASH" />
         <AnimatedMoney value={cash} tone="green" style={styles.value} />
       </Pressable>
       <Pressable style={styles.stat} onPress={onHeatPress} accessibilityLabel={`Heat ${heat}`}>
-        <Text style={styles.label}>{AppIcons.heat} HEAT</Text>
+        <StatLabel icon={AppIcons.heat} label="HEAT" />
         <Text style={[styles.valueText, heat >= 70 && styles.danger]}>{heat}</Text>
       </Pressable>
       <Pressable style={styles.stat} onPress={onReputationPress} accessibilityLabel={`Reputation ${reputation}`}>
-        <Text style={styles.label}>{AppIcons.reputation} REP</Text>
+        <StatLabel icon={AppIcons.reputation} label="REP" />
         <Text style={styles.valueText}>{reputation}</Text>
         <Text style={styles.sub} numberOfLines={1}>{reputationTitle}</Text>
       </Pressable>
       <Pressable style={styles.stat} onPress={onNetWorthPress} accessibilityLabel={`Net worth ${netWorth}`}>
-        <Text style={styles.label}>{AppIcons.netWorth} NET</Text>
+        <StatLabel icon={AppIcons.netWorth} label="NET" />
         <AnimatedMoney value={netWorth} tone="purple" style={styles.valueSmall} />
       </Pressable>
     </View>
@@ -69,12 +78,17 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     ...shadows.card,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: spacing.xs,
+  },
   label: {
     color: palette.textMuted,
     fontSize: typography.tiny,
     fontWeight: '800',
     letterSpacing: 0.6,
-    marginBottom: spacing.xs,
   },
   value: {
     fontSize: typography.subtitle,

@@ -1,6 +1,6 @@
 import { HiredCrewMember, CrewRole } from '../types/crew';
 import { OwnedBusiness } from '../types/businesses';
-import { OwnedSafehouse } from '../types/safehouses';
+import { OwnedSafehouse, SafehouseDefinition } from '../types/safehouses';
 import {
   BusinessUpgradeLevels,
   CrewAssignment,
@@ -133,6 +133,11 @@ export function normalizeOwnedBusiness(record: OwnedBusiness): OwnedBusiness {
 export function normalizeOwnedSafehouse(record: OwnedSafehouse): OwnedSafehouse {
   return {
     ...record,
+    rentOrOwn: record.rentOrOwn === 'rent' ? 'rent' : 'own',
+    condition: clamp(record.condition, 0, 100),
+    comfortLevel: clamp(record.comfortLevel ?? 50, 0, 100),
+    securityLevel: clamp(record.securityLevel ?? 50, 0, 100),
+    secrecyLevel: clamp(record.secrecyLevel ?? 50, 0, 100),
     assignedGuardCrewId: record.assignedGuardCrewId ?? null,
     upgradeLevels: migratePropertyUpgrades(record.upgradeLevels),
     recentEvents: migrateEmpireEvents(record.recentEvents),
@@ -173,13 +178,19 @@ export function createDefaultOwnedBusinessFields(
 
 export function createDefaultOwnedSafehouseFields(
   safehouseId: string,
-  purchasedDay: number
+  purchasedDay: number,
+  rentOrOwn: 'rent' | 'own' = 'own',
+  def?: Pick<SafehouseDefinition, 'comfortLevel' | 'securityLevel' | 'secrecyLevel'>
 ): OwnedSafehouse {
   return normalizeOwnedSafehouse({
     safehouseId,
     purchasedDay,
+    rentOrOwn,
     condition: 100,
     upkeepMissedDays: 0,
+    comfortLevel: def?.comfortLevel ?? 50,
+    securityLevel: def?.securityLevel ?? 50,
+    secrecyLevel: def?.secrecyLevel ?? 50,
     assignedGuardCrewId: null,
     upgradeLevels: { ...DEFAULT_PROPERTY_UPGRADES },
     recentEvents: [],

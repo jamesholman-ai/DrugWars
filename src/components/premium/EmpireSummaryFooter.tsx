@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatMoney } from '../../utils/format';
-import { AppIcons } from '../../theme/icons';
+import { AppIcon, AppIcons, IconName } from '../../theme/icons';
 import { palette, radius, spacing, typography } from '../../theme/theme';
 
 interface EmpireSummaryFooterProps {
@@ -10,6 +10,15 @@ interface EmpireSummaryFooterProps {
   propertyCount: number;
   dailyNet: number;
   onPress?: () => void;
+}
+
+function SummaryItem({ icon, count }: { icon: IconName; count: number }) {
+  return (
+    <View style={styles.itemRow}>
+      <AppIcon name={icon} size={14} color={palette.textSecondary} />
+      <Text style={styles.item}>{count}</Text>
+    </View>
+  );
 }
 
 function EmpireSummaryFooterInner({
@@ -22,11 +31,11 @@ function EmpireSummaryFooterInner({
   const content = (
     <View style={styles.wrap}>
       <View style={styles.row}>
-        <Text style={styles.item}>{AppIcons.crew} {crewCount}</Text>
+        <SummaryItem icon={AppIcons.crew} count={crewCount} />
         <Text style={styles.dot}>·</Text>
-        <Text style={styles.item}>{AppIcons.business} {businessCount}</Text>
+        <SummaryItem icon={AppIcons.business} count={businessCount} />
         <Text style={styles.dot}>·</Text>
-        <Text style={styles.item}>{AppIcons.property} {propertyCount}</Text>
+        <SummaryItem icon={AppIcons.property} count={propertyCount} />
       </View>
       <Text style={[styles.net, dailyNet >= 0 ? styles.positive : styles.negative]}>
         Daily net {dailyNet >= 0 ? '+' : ''}{formatMoney(dailyNet)}
@@ -60,6 +69,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexWrap: 'wrap',
+    gap: 4,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
   item: {

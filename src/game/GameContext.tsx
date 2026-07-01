@@ -3,7 +3,9 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   ReactNode,
@@ -12,7 +14,6 @@ import { AreaId, CommodityId, GameState } from '../types/game';
 import {
   borrowMoney,
   buyCommodity,
-  chooseEventOption,
   createInitialGameState,
   payDebt,
   restDay,
@@ -37,7 +38,7 @@ import {
 } from './heatManagement';
 import { buyFromSupplier as buyFromSupplierEngine } from './supplierSystem';
 import { acceptContract as acceptContractEngine, fulfillContract as fulfillContractEngine } from './contractSystem';
-import { purchaseSafehouse as purchaseSafehouseEngine, depositToSafehouse as depositEngine, withdrawFromSafehouse as withdrawEngine } from './safehouseSystem';
+import { purchaseSafehouse as purchaseSafehouseEngine, rentSafehouse as rentSafehouseEngine, setHomeBase as setHomeBaseEngine, depositToSafehouse as depositEngine, withdrawFromSafehouse as withdrawEngine } from './safehouseSystem';
 import { purchaseBusiness as purchaseBusinessEngine, repairBusiness as repairBusinessEngine } from './businessSystem';
 import { claimMissionReward as claimMissionRewardEngine, claimDailyObjective as claimDailyObjectiveEngine, formatMissionRewardSummary } from './missionSystem';
 import { MISSION_MAP } from '../data/missions';
@@ -72,6 +73,52 @@ import {
 } from './profileStorage';
 import { getStoreInventory, withStoreInventory } from './storeInventory';
 import { useLawyerToken } from './consumableUseSystem';
+import { EventPopup, EventPopupPhase } from '../components/events/EventPopup';
+import { EventResultSummary } from './eventResultSummary';
+import { resolveGameEventChoice } from './eventPopupFlow';
+import { GameEvent } from '../types/events';
+
+interface EventPopupSession {
+  event: GameEvent;
+  phase: EventPopupPhase;
+  result?: EventResultSummary;
+  /** Applied to game state when the player confirms the result screen. */
+  deferredLastMessage?: string;
+  deferredMessageLog?: string[];
+}
+
+type EventPopupAction =
+  | { type: 'open'; event: GameEvent }
+  | {
+      type: 'resolve';
+      event: GameEvent;
+      result: EventResultSummary;
+      deferredLastMessage: string;
+      deferredMessageLog: string[];
+    }
+  | { type: 'clear' };
+
+function eventPopupReducer(
+  state: EventPopupSession | null,
+  action: EventPopupAction
+): EventPopupSession | null {
+  switch (action.type) {
+    case 'open':
+      return { event: action.event, phase: 'choosing' };
+    case 'resolve':
+      return {
+        event: action.event,
+        phase: 'result',
+        result: action.result,
+        deferredLastMessage: action.deferredLastMessage,
+        deferredMessageLog: action.deferredMessageLog,
+      };
+    case 'clear':
+      return null;
+    default:
+      return state;
+  }
+}
 
 function applyUpdate(
   prev: GameState | null,
@@ -92,13 +139,15 @@ interface GameContextValue {
   resetAllData: () => Promise<void>;
   buy: (commodityId: CommodityId, quantity: number) => void;
   sell: (commodityId: CommodityId, quantity: number) => void;
-  travelToArea: (areaId: AreaId) => void;
-  travelToCity: (cityId: string, areaId?: AreaId) => void;
+  travelToArea: (areaId: AreaId) => GameState | null;
+  travelToCity: (cityId: string, areaId?: AreaId) => GameState | null;
   stay: () => void;
   payOffDebt: (amount: number) => void;
   borrow: (amount: number) => void;
   rest: () => void;
-  resolveEventChoice: (choiceId: string) => void;
+  resolveEventChoice: (choiceId: string) => EventResultSummary | null;
+  confirmEventPopup: () => void;
+  isEventPopupVisible: boolean;
   purchaseInventoryUpgrade: () => void;
   purchaseStashHouse: (stashId: string) => void;
   purchaseEquipment: (equipmentId: string) => void;
@@ -116,6 +165,8 @@ interface GameContextValue {
   fireCrew: (crewId: string) => void;
   assignCrew: (crewId: string, assignment: CrewAssignment, targetId?: string) => void;
   purchaseSafehouse: (safehouseId: string) => void;
+  rentSafehouse: (safehouseId: string) => void;
+  setHomeBase: (safehouseId: string) => void;
   depositToSafehouse: (safehouseId: string, commodityId: CommodityId, quantity: number) => void;
   withdrawFromSafehouse: (safehouseId: string, commodityId: CommodityId, quantity: number) => void;
   purchaseBusiness: (businessId: string) => void;
@@ -151,7 +202,48 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [claimFeedback, setClaimFeedback] = useState<RewardClaimFeedback | null>(null);
   const [activeClaimKey, setActiveClaimKey] = useState<string | null>(null);
+  const [eventPopup, dispatchEventPopup] = useReducer(eventPopupReducer, null);
   const claimFeedbackId = useRef(0);
+  const eventPopupRef = useRef<EventPopupSession | null>(null);
+  const gameStateRef = useRef<GameState | null>(null);
+  gameStateRef.current = gameState;
+
+  useLayoutEffect(() => {
+    eventPopupRef.current = eventPopup;
+  }, [eventPopup]);
+
+  const openChoosingPopup = useCallback((event: GameEvent) => {
+    if (eventPopupRef.current?.phase === 'result') return;
+    if (
+      eventPopupRef.current?.phase === 'choosing' &&
+      eventPopupRef.current.event.id === event.id
+    ) {
+      return;
+    }
+    dispatchEventPopup({ type: 'open', event });
+  }, []);
+
+  const showEventResult = useCallback(
+    (
+      event: GameEvent,
+      result: EventResultSummary,
+      deferredLastMessage: string,
+      deferredMessageLog: string[]
+    ) => {
+      dispatchEventPopup({
+        type: 'resolve',
+        event,
+        result,
+        deferredLastMessage,
+        deferredMessageLog,
+      });
+    },
+    []
+  );
+
+  const dismissEventPopup = useCallback(() => {
+    dispatchEventPopup({ type: 'clear' });
+  }, []);
 
   const showClaimFeedback = useCallback(
     (variant: RewardClaimFeedback['variant'], title: string, detail?: string) => {
@@ -170,22 +262,58 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setClaimFeedback(null);
   }, []);
 
+  useEffect(() => {
+    if (eventPopup?.phase === 'result') return;
+    if (gameState?.pendingEvent && !eventPopup) {
+      openChoosingPopup(gameState.pendingEvent);
+    }
+  }, [gameState?.pendingEvent, eventPopup, openChoosingPopup]);
+
   const persist = useCallback(async (state: GameState) => {
     await saveGameState(state);
     setHasSavedGame(true);
   }, []);
 
-  const commitUpdate = useCallback(
-    (updater: (state: GameState) => GameState) => {
-      setGameState((prev) => {
-        const next = applyUpdate(prev, updater);
-        if (next) {
-          void persist(next);
-        }
-        return next;
+  const confirmEventPopup = useCallback(() => {
+    const session = eventPopupRef.current;
+    dismissEventPopup();
+
+    if (session?.phase !== 'result' || !session.deferredLastMessage) {
+      return;
+    }
+
+    setGameState((prev) => {
+      if (!prev) return prev;
+      const next = normalizeGameState({
+        ...prev,
+        lastMessage: session.deferredLastMessage!,
+        messageLog: session.deferredMessageLog ?? [session.deferredLastMessage!],
       });
+      gameStateRef.current = next;
+      void persist(next);
+      return next;
+    });
+  }, [dismissEventPopup, persist]);
+
+  const commitUpdate = useCallback(
+    (updater: (state: GameState) => GameState): GameState | null => {
+      const prev = gameStateRef.current;
+      if (!prev) return null;
+
+      const next = applyUpdate(prev, updater);
+      if (!next) return null;
+
+      gameStateRef.current = next;
+      setGameState(next);
+      void persist(next);
+
+      if (next.pendingEvent && eventPopupRef.current?.phase !== 'result') {
+        openChoosingPopup(next.pendingEvent);
+      }
+
+      return next;
     },
-    [persist]
+    [openChoosingPopup, persist]
   );
 
   useEffect(() => {
@@ -219,6 +347,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [isProfileReady]);
 
   const startNewGame = useCallback(async (): Promise<GameState> => {
+    dismissEventPopup();
     let nextProfile = profile;
     if (gameState) {
       nextProfile = mergeRunStoreInventoryIntoProfile(profile, getStoreInventory(gameState));
@@ -233,7 +362,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setHasSavedGame(true);
     await persist(state);
     return state;
-  }, [persist, profile, gameState, persistProfile]);
+  }, [dismissEventPopup, persist, profile, gameState, persistProfile]);
 
   const continueGame = useCallback(async (): Promise<boolean> => {
     if (gameState) {
@@ -278,19 +407,22 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const travelArea = useCallback(
     (areaId: AreaId) => {
-      commitUpdate((s) => travelToArea(s, areaId));
+      if (eventPopupRef.current) return null;
+      return commitUpdate((s) => travelToArea(s, areaId));
     },
     [commitUpdate]
   );
 
   const travelCity = useCallback(
     (cityId: string, areaId?: AreaId) => {
-      commitUpdate((s) => travelToCity(s, cityId, areaId));
+      if (eventPopupRef.current) return null;
+      return commitUpdate((s) => travelToCity(s, cityId, areaId));
     },
     [commitUpdate]
   );
 
   const stay = useCallback(() => {
+    if (eventPopupRef.current) return;
     commitUpdate((s) => stayHere(s));
   }, [commitUpdate]);
 
@@ -309,14 +441,42 @@ export function GameProvider({ children }: { children: ReactNode }) {
   );
 
   const rest = useCallback(() => {
+    if (eventPopupRef.current) return;
     commitUpdate((s) => restDay(s));
   }, [commitUpdate]);
 
   const resolveEventChoice = useCallback(
-    (choiceId: string) => {
-      commitUpdate((s) => chooseEventOption(s, choiceId));
+    (choiceId: string): EventResultSummary | null => {
+      const popup = eventPopupRef.current;
+      if (popup?.phase === 'result') {
+        return popup.result ?? null;
+      }
+
+      const prev = gameStateRef.current;
+      if (!prev) return null;
+
+      const activeEvent =
+        prev.pendingEvent ?? (popup?.phase === 'choosing' ? popup.event : null);
+      if (!activeEvent) return null;
+
+      const resolved = resolveGameEventChoice(prev, activeEvent, choiceId, {
+        deferMessages: true,
+      });
+      if ('locked' in resolved) return null;
+
+      const { after, result, deferredLastMessage, deferredMessageLog } = resolved;
+      showEventResult(
+        activeEvent,
+        result,
+        deferredLastMessage ?? result.message,
+        deferredMessageLog ?? [result.message]
+      );
+      gameStateRef.current = after;
+      setGameState(after);
+      void persist(after);
+      return result;
     },
-    [commitUpdate]
+    [persist, showEventResult]
   );
 
   const purchaseInventoryUpgrade = useCallback(() => {
@@ -420,6 +580,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const purchaseSafehouse = useCallback(
     (safehouseId: string) => {
       commitUpdate((s) => purchaseSafehouseEngine(s, safehouseId));
+    },
+    [commitUpdate]
+  );
+
+  const rentSafehouse = useCallback(
+    (safehouseId: string) => {
+      commitUpdate((s) => rentSafehouseEngine(s, safehouseId));
+    },
+    [commitUpdate]
+  );
+
+  const setHomeBase = useCallback(
+    (safehouseId: string) => {
+      commitUpdate((s) => setHomeBaseEngine(s, safehouseId));
     },
     [commitUpdate]
   );
@@ -619,8 +793,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [commitUpdate]);
 
   const endGame = useCallback(() => {
+    dismissEventPopup();
     setGameState(null);
-  }, []);
+  }, [dismissEventPopup]);
 
   const value = useMemo(
     () => ({
@@ -641,6 +816,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       borrow,
       rest,
       resolveEventChoice,
+      confirmEventPopup,
+      isEventPopupVisible: eventPopup != null,
       purchaseInventoryUpgrade,
       purchaseStashHouse,
       purchaseEquipment,
@@ -658,6 +835,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       fireCrew,
       assignCrew,
       purchaseSafehouse,
+      rentSafehouse,
+      setHomeBase,
       depositToSafehouse,
       withdrawFromSafehouse,
       purchaseBusiness,
@@ -679,6 +858,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }),
     [
       gameState,
+      eventPopup,
       hasSavedGame,
       isStorageReady,
       startNewGame,
@@ -694,6 +874,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       borrow,
       rest,
       resolveEventChoice,
+      confirmEventPopup,
       purchaseInventoryUpgrade,
       purchaseStashHouse,
       purchaseEquipment,
@@ -711,6 +892,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       fireCrew,
       assignCrew,
       purchaseSafehouse,
+      rentSafehouse,
+      setHomeBase,
       depositToSafehouse,
       withdrawFromSafehouse,
       purchaseBusiness,
@@ -735,6 +918,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
   return (
     <GameContext.Provider value={value}>
       {children}
+      <EventPopup
+        visible={eventPopup != null}
+        phase={eventPopup?.phase ?? 'choosing'}
+        event={eventPopup?.event ?? gameState?.pendingEvent ?? null}
+        gameState={gameState}
+        resolvedResult={eventPopup?.result ?? null}
+        onChoose={resolveEventChoice}
+        onConfirm={confirmEventPopup}
+      />
       <RewardClaimToast feedback={claimFeedback} onDismiss={dismissClaimFeedback} />
     </GameContext.Provider>
   );

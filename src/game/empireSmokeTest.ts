@@ -20,7 +20,11 @@ import {
 import {
   depositToSafehouse,
   purchaseSafehouse,
+  rentSafehouse,
   withdrawFromSafehouse,
+  tickSafehouseUpkeep,
+  getDailyPropertyRent,
+  getDailyPropertyUpkeep,
 } from './safehouseSystem';
 import {
   getEffectiveStorageCapacity,
@@ -34,9 +38,10 @@ import {
   migrateBusinessUpgrades,
   migratePropertyUpgrades,
 } from './empireDefaults';
-const HARLEM = { currentCityId: 'new_york' as const, currentAreaId: 'new_york_harlem' as const };
+const HARLEM = { currentCityId: 'new_york' as const, currentAreaId: 'new_york_brooklyn' as const };
 const BIZ_ID = 'biz_ny_harlem_pawn';
-const PROP_ID = 'sh_ny_harlem_motel';
+const PROP_RENT_ID = 'sh_ny_harlem_motel';
+const PROP_ID = 'sh_ny_harlem_studio';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -101,7 +106,7 @@ function runnerRecruit(): CrewRecruitOffer {
     name: 'Little Tee',
     role: 'runner',
     cityId: 'new_york',
-    areaId: 'new_york_harlem',
+    areaId: 'new_york_brooklyn',
     skill: 42,
     loyalty: 63,
     salaryPerDay: 70,
@@ -123,7 +128,7 @@ function makeCrew(
     name: `Test ${role}`,
     role,
     cityId: 'new_york',
-    areaId: 'new_york_harlem',
+    areaId: 'new_york_brooklyn',
     skill: role === 'accountant' ? 70 : 55,
     loyalty: overrides.loyalty ?? 60,
     salaryPerDay: 80,
@@ -189,7 +194,7 @@ function testV11SaveMigration(): void {
         name: 'Legacy Runner',
         role: 'runner',
         cityId: 'new_york',
-        areaId: 'new_york_harlem',
+        areaId: 'new_york_brooklyn',
         skill: 40,
         loyalty: 50,
         salaryPerDay: 70,
@@ -215,6 +220,10 @@ function testV11SaveMigration(): void {
         purchasedDay: 2,
         condition: 90,
         upkeepMissedDays: 0,
+        rentOrOwn: 'own',
+        comfortLevel: 50,
+        securityLevel: 50,
+        secrecyLevel: 50,
       },
     ],
   });
@@ -242,6 +251,8 @@ function testV11SaveMigration(): void {
   const prop = migrated!.ownedSafehouses![0];
   const propUpgrades = migratePropertyUpgrades(prop.upgradeLevels);
   assert(propUpgrades.locks === DEFAULT_PROPERTY_UPGRADES.locks, 'property upgrades defaulted');
+  assert(prop.rentOrOwn === 'own' || prop.rentOrOwn === 'rent', 'property rentOrOwn migrated');
+  assert(prop.comfortLevel != null && prop.comfortLevel >= 0, 'property comfort migrated');
   assert(prop.assignedGuardCrewId === null, 'property guard defaulted');
   assert(Array.isArray(prop.recentEvents), 'property recentEvents array');
 }
@@ -403,7 +414,7 @@ function testBusinessManagerEffect(): void {
           name: 'Skimmer',
           role: 'runner',
           cityId: 'new_york',
-          areaId: 'new_york_harlem',
+          areaId: 'new_york_brooklyn',
           skill: 40,
           loyalty: 20,
           salaryPerDay: 500,
@@ -568,6 +579,51 @@ function testBounds(): void {
   }
 }
 
+function testPropertyRentAndDayAdvance(): void {
+  let state = harlemState();
+  state = rentSafehouse(state, PROP_RENT_ID);
+  const rented = (state.ownedSafehouses ?? []).find((p) => p.safehouseId === PROP_RENT_ID);
+  assert(rented?.rentOrOwn === 'rent', 'rented property marked rent');
+
+  const rentPerDay = getDailyPropertyRent(state);
+  assert(rentPerDay > 0, 'daily rent projected');
+
+  const cashBefore = state.player.cash;
+  state = tickSafehouseUpkeep(state);
+  assert(state.player.cash < cashBefore, 'rent charged on tick');
+  assert(
+    (state.financeLog ?? []).some((e) => e.kind === 'property_rent'),
+    'finance log records property rent'
+  );
+
+  state = purchaseSafehouse(state, PROP_ID);
+  assert((state.ownedSafehouses ?? []).some((p) => p.rentOrOwn === 'own'), 'owned property marked own');
+  const upkeepBefore = state.player.cash;
+  state = tickSafehouseUpkeep(state);
+  assert(
+    (state.financeLog ?? []).some((e) => e.kind === 'property_upkeep') || state.player.cash < upkeepBefore,
+    'upkeep charged for owned property'
+  );
+
+  let broke = {
+    ...state,
+    player: { ...state.player, cash: 0 },
+    ownedSafehouses: (state.ownedSafehouses ?? []).map((p) => ({
+      ...p,
+      condition: 80,
+      comfortLevel: 60,
+      securityLevel: 55,
+      secrecyLevel: 50,
+    })),
+  };
+  broke = tickSafehouseUpkeep(broke);
+  const degraded = (broke.ownedSafehouses ?? [])[0];
+  assert(
+    degraded.condition < 80 || degraded.comfortLevel! < 60,
+    'unpaid rent/upkeep lowers condition or comfort'
+  );
+}
+
 export function runEmpireSmokeTests(): void {
   testV11SaveMigration();
   testCrewHiringAndAssignment();
@@ -575,6 +631,7 @@ export function runEmpireSmokeTests(): void {
   testBusinessPurchaseAndUpgrade();
   testBusinessManagerEffect();
   testPropertyPurchaseAndUpgrade();
+  testPropertyRentAndDayAdvance();
   testStorageSafety();
   testGuardProperty();
   testSaveRoundtrip();

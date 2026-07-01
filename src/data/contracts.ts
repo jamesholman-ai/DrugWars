@@ -27,7 +27,8 @@ export const CONTRACT_DRUGS_BY_BUYER: Record<BuyerType, string[]> = {
   rival_buyer: ['cocaine', 'weed', 'crack', 'heroin'],
 };
 
-/** Max pending offers shown at once. */
+/** Max pending offers shown at once. Active cap is rank-based via getMaxActiveContracts. */
 export const MAX_CONTRACT_OFFERS = 4;
-export const MAX_ACTIVE_CONTRACTS = 3;
+/** @deprecated Use getMaxActiveContracts(state) */
+export const MAX_ACTIVE_CONTRACTS = 5;
 export const MAX_CONTRACT_HISTORY = 20;

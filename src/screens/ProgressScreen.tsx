@@ -22,6 +22,7 @@ import {
   getCityUnlockHint,
 } from '../game/progression';
 import { RANKS, STASH_HOUSE_MAP, INVENTORY_UPGRADE_MAP } from '../data/progression';
+import { getRankBenefits, getRankBenefitsForState } from '../data/rankBenefits';
 import { CITIES } from '../data/locations';
 import { RootStackParamList } from '../types/game';
 import { formatMoney } from '../utils/format';
@@ -57,6 +58,8 @@ export function ProgressScreen({ navigation }: Props) {
   const repTier = getReputationTier(player.reputation);
   const netWorth = getNetWorth(player, gameState.marketPrices);
   const rankProgress = computeRankProgressPercent(gameState);
+  const currentBenefits = getRankBenefitsForState(gameState);
+  const nextBenefits = nextRank ? getRankBenefits(nextRank.id) : null;
 
   return (
     <AppShell
@@ -110,6 +113,27 @@ export function ProgressScreen({ navigation }: Props) {
         <StatBar label="Rank Progress" value={rankProgress} color={palette.purpleBright} />
         <StatBar label="Reputation" value={player.reputation} color={palette.purpleBright} />
       </SectionCard>
+
+      <SectionCard title="Current Benefits" tone="green" subtitle={`${rank.name} perks active now`}>
+        {currentBenefits.unlocks.map((line) => (
+          <Text key={line} style={styles.reqLine}>
+            · {line}
+          </Text>
+        ))}
+        <Text style={styles.metaLine}>
+          Crew slots: {currentBenefits.maxHiredCrew} · Contracts: {currentBenefits.maxActiveContracts} · Business tier: {currentBenefits.maxBusinessTier}
+        </Text>
+      </SectionCard>
+
+      {nextBenefits ? (
+        <SectionCard title={`Unlock at ${nextRank?.name}`} tone="purple">
+          {nextBenefits.unlocks.map((line) => (
+            <Text key={line} style={styles.reqLine}>
+              · {line}
+            </Text>
+          ))}
+        </SectionCard>
+      ) : null}
 
       <SectionCard title="Heat & Legal" tone="amber">
         <StatBar label="Heat" value={player.heat} color={palette.amber} dangerAbove={75} />
@@ -317,6 +341,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 11,
     lineHeight: 18,
+  },
+  metaLine: {
+    color: palette.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 10,
+    marginTop: spacing.sm,
+    lineHeight: 16,
   },
   ladderRow: {
     flexDirection: 'row',

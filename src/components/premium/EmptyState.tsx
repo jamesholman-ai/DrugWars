@@ -1,11 +1,11 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { NeonButton } from './NeonButton';
-import { palette, radius, spacing, typography } from '../../theme/theme';
-import { AppIcons } from '../../theme/icons';
+import { palette, spacing, typography } from '../../theme/theme';
+import { AppIcon, AppIcons, IconName, isIconName } from '../../theme/icons';
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: IconName | string;
   title: string;
   message?: string;
   actionLabel?: string;
@@ -22,7 +22,11 @@ export function EmptyState({
   return (
     <View style={styles.wrap} accessibilityRole="text">
       <View style={styles.iconCircle}>
-        <Text style={styles.icon}>{icon}</Text>
+        {isIconName(icon) ? (
+          <AppIcon name={icon} size={26} color={palette.textSecondary} />
+        ) : (
+          <Text style={styles.icon}>{icon}</Text>
+        )}
       </View>
       <Text style={styles.title}>{title}</Text>
       {message ? <Text style={styles.message}>{message}</Text> : null}

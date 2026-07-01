@@ -218,7 +218,7 @@ function testStayHereAdvancesOneDayWithEffects(): void {
       { businessId: 'biz_ny_harlem_pawn', purchasedDay: 1, condition: 100, upkeepMissedDays: 0 },
     ],
     ownedSafehouses: [
-      { safehouseId: 'sh_ny_harlem_motel', purchasedDay: 1, condition: 80, upkeepMissedDays: 0 },
+      { safehouseId: 'sh_ny_harlem_motel', purchasedDay: 1, condition: 80, upkeepMissedDays: 0, rentOrOwn: 'rent', comfortLevel: 40, securityLevel: 25, secrecyLevel: 40 },
     ],
     hiredCrew: [],
     areaMovesToday: 2,
@@ -280,7 +280,7 @@ function testAreaMovesTimeRules(): void {
 
   const dayStart = state.player.day;
 
-  state = withStableRandom(() => travelToArea(state, 'new_york_harlem'));
+  state = withStableRandom(() => travelToArea(state, 'new_york_harbor'));
   assert(state.player.day === dayStart, 'area move 1 does not advance day');
   assert(getAreaMovesToday(state) === 1, 'area move count 1');
 
@@ -288,7 +288,7 @@ function testAreaMovesTimeRules(): void {
   assert(state.player.day === dayStart, 'area move 2 does not advance day');
   assert(getAreaMovesToday(state) === 2, 'area move count 2');
 
-  state = withStableRandom(() => travelToArea(state, 'new_york_queens'));
+  state = withStableRandom(() => travelToArea(state, 'new_york_club_district'));
   assert(state.player.day === dayStart + 1, 'area move 3 advances exactly 1 day');
   assert(state.areaMovesToday === 0, 'areaMovesToday reset after 3rd move day advance');
   assertNonNegativeCashDebt(state, 'after 3 area moves');

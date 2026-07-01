@@ -26,6 +26,13 @@ import {
 } from '../data/locations';
 import { getNetWorth } from './economy';
 import { withMessage } from './messages';
+import { appendFinanceLog } from './financeSystem';
+import {
+  formatRankUnlockSummary,
+  getRankBenefits,
+  getEffectiveRobberyMultiplier,
+} from '../data/rankBenefits';
+import { getRankUpMechanicalUnlocks } from './unlockHints';
 import { getPlayerAreaKey } from '../data/locations';
 import { getRunnerCapacityBonus } from './crewBonuses';
 import { getSafehouseRobberyProtection } from './safehouseSystem';
@@ -250,7 +257,7 @@ export function getRobberyWeightMultiplier(state: GameState): number {
     }
   }
 
-  return Math.max(0.4, 1 - reduction);
+  return getEffectiveRobberyMultiplier(state, Math.max(0.4, 1 - reduction));
 }
 
 export function getNextInventoryUpgrade(
@@ -305,9 +312,19 @@ export function syncProgression(
 
   if (options.announceRankUp && rankId !== previousRankId && rankIndex(rankId) > rankIndex(previousRankId)) {
     const rank = RANK_MAP[rankId];
+    const benefits = getRankBenefits(rankId);
+    const mechanical = getRankUpMechanicalUnlocks(previousRankId, rankId);
+    const unlockSummary =
+      mechanical.length > 0 ? mechanical.join(' · ') : formatRankUnlockSummary(rankId);
     updated = withMessage(
       updated,
-      `RANK UP — You are now a ${rank.name}. ${rank.description}`
+      `RANK UP — ${rank.name}. Unlocked: ${unlockSummary}.`
+    );
+    updated = appendFinanceLog(
+      updated,
+      'rank_up',
+      0,
+      `Promoted to ${rank.name}. ${mechanical.length > 0 ? mechanical.join(' · ') : benefits.unlocks.slice(0, 4).join(' · ')}`
     );
   }
 

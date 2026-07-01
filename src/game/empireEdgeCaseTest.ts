@@ -34,7 +34,7 @@ import { getStoreInventory, withStoreInventory } from './storeInventory';
 import { grantProductCredits } from './consumableCredits';
 import { useCrewLoyaltyCredit } from './consumableUseSystem';
 
-const HARLEM = { currentCityId: 'new_york' as const, currentAreaId: 'new_york_harlem' as const };
+const HARLEM = { currentCityId: 'new_york' as const, currentAreaId: 'new_york_brooklyn' as const };
 const BIZ_ID = 'biz_ny_harlem_pawn';
 const PROP_ID = 'sh_ny_harlem_motel';
 const ROOT = process.cwd();
@@ -108,7 +108,7 @@ function makeCrew(
     name: `Test ${role}`,
     role,
     cityId: 'new_york',
-    areaId: 'new_york_harlem',
+    areaId: 'new_york_brooklyn',
     skill: 55,
     loyalty: overrides.loyalty ?? 60,
     salaryPerDay: 80,

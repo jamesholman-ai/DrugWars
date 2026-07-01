@@ -83,6 +83,10 @@ export function normalizeGameState(state: GameState): GameState {
     areaMovesToday: state.areaMovesToday ?? financeDefaults.areaMovesToday,
     lastAreaMoveDay: state.lastAreaMoveDay ?? financeDefaults.lastAreaMoveDay,
     financeLog: migrateFinanceLog(state.financeLog),
+    runSeed: state.runSeed,
+    districtBusinessListings: state.districtBusinessListings,
+    districtCrewListings: state.districtCrewListings,
+    districtPropertyListings: state.districtPropertyListings,
     player: normalizeMoneyFields({
       ...legalDefaults,
       ...state.player,
@@ -95,6 +99,7 @@ export function normalizeGameState(state: GameState): GameState {
       daysInJail: state.player.daysInJail ?? legalDefaults.daysInJail,
       debtCollectorWarnings:
         state.player.debtCollectorWarnings ?? legalDefaults.debtCollectorWarnings,
+      homeBaseId: state.player.homeBaseId ?? null,
     }),
   };
 
