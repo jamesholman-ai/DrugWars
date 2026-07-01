@@ -41,3 +41,4 @@ yarn-error.*
 /android
 /target/npmCache
 target/npmCache/_npx/c15e4b19a90d9797/package-lock.json
+package-lock.json
