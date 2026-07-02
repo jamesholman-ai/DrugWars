@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getScrollContentPaddingBottom } from '../../layout/bottomNavLayout';
 import { PremiumBackground } from './PremiumBackground';
 import { spacing } from '../../theme/theme';
 
@@ -23,10 +24,18 @@ export function PremiumScreen({
   scroll = true,
   background = 'default',
 }: PremiumScreenProps) {
+  const insets = useSafeAreaInsets();
+  const hasBottomNav = bottomNav != null;
+  const scrollBottomPadding = getScrollContentPaddingBottom(insets.bottom, hasBottomNav);
+
   const body = scroll ? (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={[styles.content, contentStyle]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: scrollBottomPadding },
+        contentStyle,
+      ]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -39,14 +48,12 @@ export function PremiumScreen({
   return (
     <PremiumBackground variant={background}>
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        {header}
-        {body}
-        {footer}
-        {bottomNav ? (
-          <SafeAreaView edges={['bottom']} style={styles.bottomNavWrap}>
-            {bottomNav}
-          </SafeAreaView>
-        ) : null}
+        <View style={styles.frame}>
+          {header}
+          {body}
+          {footer}
+          {bottomNav}
+        </View>
       </SafeAreaView>
     </PremiumBackground>
   );
@@ -54,6 +61,9 @@ export function PremiumScreen({
 
 const styles = StyleSheet.create({
   safe: {
+    flex: 1,
+  },
+  frame: {
     flex: 1,
   },
   scroll: {
@@ -65,11 +75,5 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
-  },
-  bottomNavWrap: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(16,19,26,0.95)',
   },
 });

@@ -1,6 +1,7 @@
 import React, { memo, ReactNode, RefObject } from 'react';
 import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getScrollContentPaddingBottom } from '../../layout/bottomNavLayout';
 import { AAABackground } from './AAABackground';
 
 interface AAACommandShellProps {
@@ -21,6 +22,8 @@ function AAACommandShellInner({
   style,
 }: AAACommandShellProps) {
   const insets = useSafeAreaInsets();
+  const hasFooter = footer != null;
+  const scrollBottomPadding = getScrollContentPaddingBottom(insets.bottom, hasFooter);
 
   const body = (
     <View style={[styles.inner, { paddingTop: insets.top + 8 }, style]}>
@@ -30,20 +33,23 @@ function AAACommandShellInner({
   );
 
   return (
-    <AAABackground variant="hub">
-      {scroll ? (
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 100 }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {body}
-        </ScrollView>
-      ) : (
-        body
-      )}
-      {footer}
+    <AAABackground>
+      <View style={styles.frame}>
+        {scroll ? (
+          <ScrollView
+            ref={scrollRef}
+            style={styles.scrollView}
+            contentContainerStyle={[styles.scroll, { paddingBottom: scrollBottomPadding }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {body}
+          </ScrollView>
+        ) : (
+          <View style={styles.flex}>{body}</View>
+        )}
+        {footer}
+      </View>
     </AAABackground>
   );
 }
@@ -51,6 +57,15 @@ function AAACommandShellInner({
 export const AAACommandShell = memo(AAACommandShellInner);
 
 const styles = StyleSheet.create({
+  frame: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 16,
