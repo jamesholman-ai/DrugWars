@@ -13,7 +13,8 @@ import {
 } from './marketTrend';
 import { normalizeGameState } from './stateUtils';
 import { CommodityId } from '../types/game';
-import { isDrugAvailableToBuy } from './marketAvailabilitySystem';
+import { COMMODITIES } from '../data/commodities';
+import { getDailyAreaAvailability, isDrugAvailableToBuy } from './marketAvailabilitySystem';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -95,15 +96,17 @@ function testDayAdvanceFlow(): void {
 }
 
 function testUnavailableTodayNoBuyRow(): void {
-  withStableRandom(() => {
-    const state = normalizeGameState(createInitialGameState());
-    const unavailable = (['cocaine', 'heroin', 'weed'] as CommodityId[]).find(
-      (id) => !isDrugAvailableToBuy(state, id)
-    );
-    assert(unavailable != null, 'find unavailable drug');
-    const owned = state.player.inventory.find((i) => i.commodityId === unavailable)?.quantity ?? 0;
-    assert(owned === 0, 'unavailable drug not owned by default');
-  });
+  const state = normalizeGameState(createInitialGameState());
+  const { currentCityId, currentAreaId } = state.player;
+  const availableToday = new Set(
+    getDailyAreaAvailability(state, currentCityId, currentAreaId)
+  );
+  const unavailable = COMMODITIES.map((c) => c.id).find((id) => !availableToday.has(id));
+  assert(unavailable != null, 'find unavailable drug');
+  const drugId = unavailable as CommodityId;
+  assert(!isDrugAvailableToBuy(state, drugId), 'availability helper matches daily list');
+  const owned = state.player.inventory.find((i) => i.commodityId === drugId)?.quantity ?? 0;
+  assert(owned === 0, 'unavailable drug not owned by default');
 }
 
 function run(): void {

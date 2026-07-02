@@ -39,7 +39,8 @@
     "typecheck": "tsc --noEmit",
     "doctor": "expo-doctor",
     "import:art": "tsx scripts/importMidjourneyAssets.ts",
-    "extract:art-bible": "tsx scripts/extractCityArtBible.ts"
+    "extract:art-bible": "tsx scripts/extractCityArtBible.ts",
+    "generate:icons": "tsx scripts/generateAppIcons.ts"
   },
   "private": true
 }

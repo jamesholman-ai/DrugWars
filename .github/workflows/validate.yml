@@ -59,3 +59,11 @@ jobs:
           else
             echo "src/game/empireEdgeCaseTest.ts not found — skipping"
           fi
+
+      - name: Run marketTrendTest
+        run: |
+          if [ -f src/game/marketTrendTest.ts ]; then
+            npx tsx src/game/marketTrendTest.ts
+          else
+            echo "src/game/marketTrendTest.ts not found — skipping"
+          fi

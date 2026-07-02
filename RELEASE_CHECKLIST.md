@@ -15,13 +15,21 @@
 Run locally before every release candidate:
 
 ```bash
-npx tsc --noEmit
+npm ci
+npm run typecheck
 npx expo-doctor
+npx tsx src/game/financeSmokeTest.ts
+npx tsx src/game/empireSmokeTest.ts
+npx tsx src/game/empireEdgeCaseTest.ts
+npx tsx src/game/marketTrendTest.ts
 ```
 
-- [ ] `npx tsc --noEmit` passes
-- [ ] `npx expo-doctor` passes (or document any known network-only warnings)
+- [ ] `npm ci` succeeds (requires committed `package-lock.json`)
+- [ ] `npm run typecheck` passes
+- [ ] `npx expo-doctor` passes
+- [ ] All smoke tests above pass
 - [ ] `app.json` — name, package, version 1.0.0, versionCode 1, portrait, dark UI
+- [ ] `eas.json` — preview → APK, production → AAB
 - [ ] `ENABLE_REAL_IAP` is **false** until Play Billing is wired
 - [ ] Production builds do **not** enable dev mock purchases (`__DEV__` is false in release)
 - [ ] Privacy policy live at https://www.aiventure-studios.com/drugwars-reloaded/privacy
@@ -33,16 +41,16 @@ npx expo-doctor
 ### Preview APK (device QA / sideload)
 
 ```bash
-eas build --platform android --profile preview
+eas build --platform android --profile preview --clear-cache
 ```
 
 - Output: **APK** (`preview` profile → `android.buildType: apk`)
-- Install on physical Android device for smoke testing
+- Install on a physical Android device for smoke testing
 
 ### Production AAB (Google Play upload)
 
 ```bash
-eas build --platform android --profile production
+eas build --platform android --profile production --clear-cache
 ```
 
 - Output: **AAB** (`production` profile → `android.buildType: app-bundle`)
@@ -50,27 +58,31 @@ eas build --platform android --profile production
 
 ---
 
-## 3. Device QA (preview APK)
+## 3. Final phone QA (preview APK)
 
-Test on a physical Android device before uploading production AAB:
+Test on a physical Android device before uploading the production AAB:
 
+- [ ] Install preview APK on device
 - [ ] App opens to **Title screen**
-- [ ] **Enter** → main menu
 - [ ] **New Game** works
-- [ ] **Continue** works after force-close and reopen
-- [ ] Tutorial completes or skips
+- [ ] **Cinematic intro** plays on first arrival / travel (when applicable)
 - [ ] **Buy** and **Sell** work in Market
-- [ ] **Stay Here** works (day does not advance)
-- [ ] **Move Area** does **not** advance day
-- [ ] **Travel City** advances day
-- [ ] Mission reward claim shows feedback toast
-- [ ] Market trend arrows and price changes display
-- [ ] **Store** does **not** grant purchases in production (IAP disabled)
-- [ ] **Reset Run** preserves wallet credits
-- [ ] **Reset All Data (Dev)** warns before deleting wallet (dev builds only)
+- [ ] Market **trend arrows** and price changes display correctly
+- [ ] **Stay Here** advances the day
+- [ ] **Move Area** does **not** advance the day
+- [ ] **Travel City** advances the day
+- [ ] Random **events popup** — choices resolve in modal **RESULT** screen before returning to hub
+- [ ] **Finance** — debt payment / borrow flows work
+- [ ] **Crew**, **Business**, and **Property** screens load without errors
+- [ ] **Store** shows purchases **unavailable** (IAP disabled in v1.0.0)
+- [ ] No mock purchases in production release build
+- [ ] **Continue** restores saved run after force-close
+- [ ] **Reset Run** works; wallet credits preserved per design
+- [ ] No stretched images or obvious layout breaks
+- [ ] No placeholder text or missing icons in core screens
 - [ ] **About / Privacy** opens; disclaimer visible; matches `PRIVACY_POLICY.md`
 - [ ] Portrait lock; dark theme throughout
-- [ ] Offline play with airplane mode
+- [ ] Offline play with airplane mode (no account required)
 
 ---
 
@@ -82,13 +94,13 @@ Test on a physical Android device before uploading production AAB:
    - [ ] Privacy policy URL: https://www.aiventure-studios.com/drugwars-reloaded/privacy
    - [ ] **Data safety** — no data collected (see `PRIVACY_POLICY.md`)
    - [ ] **Content rating** (IARC) — use `CONTENT_RATING_NOTES.md`
-   - [ ] Target audience / ads declaration (no ads in v1.0.0)
+   - [ ] Target audience / ads declaration (**no ads** in v1.0.0)
    - [ ] In-app purchases declaration: **No** (until billing goes live)
 4. Store listing:
-   - [ ] Copy from `STORE_LISTING.md` (v1.0.0 — no live IAP claim)
-   - [ ] **512×512** icon
-   - [ ] **1024×500** feature graphic
-   - [ ] Phone screenshots (see captions in `STORE_LISTING.md`)
+   - [ ] Copy from `STORE_LISTING.md`
+   - [ ] **512×512** icon → `store-assets/icon-512.png`
+   - [ ] **1024×500** feature graphic → `store-assets/feature-graphic-1024x500.png`
+   - [ ] Phone screenshots (minimum 4) — see `store-assets/README.md`
 5. Add internal testers by email
 6. Submit internal test release
 7. Verify install from Play internal link on device
@@ -99,8 +111,10 @@ Test on a physical Android device before uploading production AAB:
 ## 5. Store / IAP status (v1.0.0)
 
 - [ ] `ENABLE_REAL_IAP = false` in `src/services/platformBilling.ts`
-- [ ] Store UI shows **Not available in this release** for Buy buttons
+- [ ] Store UI shows **Not available in this release** on product cards
+- [ ] Billing status banner states purchases are unavailable
 - [ ] No dev mock purchases in production release builds
+- [ ] No external payment links
 - [ ] `STORE_LISTING.md` does not claim IAP is live
 - [ ] Play Console IAP products **not required** until billing enabled
 
@@ -119,6 +133,9 @@ When enabling IAP later:
 - [ ] Fictional drug trade only — no real-world instructions (`GAME_DISCLAIMER` in About)
 - [ ] No real-money gambling, loot boxes, or external payment links
 - [ ] No user-generated content
+- [ ] No account required; offline single-player
+- [ ] No ads in v1.0.0
+- [ ] No personal data collected in v1.0.0
 - [ ] Content rating notes filed (`CONTENT_RATING_NOTES.md`)
 
 ---
@@ -126,10 +143,18 @@ When enabling IAP later:
 ## 7. Assets checklist
 
 - [ ] `assets/icon.png` — 1024×1024 app icon
+- [ ] `assets/adaptive-icon.png` — 1024×1024
+- [ ] `assets/android-icon-foreground.png` / `android-icon-background.png`
 - [ ] `assets/splash-icon.png` + dark splash (`#08080c`)
-- [ ] Android adaptive icons (`assets/android-icon-*`)
-- [ ] Play Store feature graphic 1024×500
-- [ ] Screenshots (minimum phone set)
+- [ ] `store-assets/icon-512.png`
+- [ ] `store-assets/feature-graphic-1024x500.png`
+- [ ] Phone screenshots exported to `store-assets/screenshots/phone/` (minimum 4)
+
+Regenerate icons from master artwork:
+
+```bash
+npx tsx scripts/generateAppIcons.ts
+```
 
 ---
 

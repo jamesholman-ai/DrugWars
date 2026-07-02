@@ -53,6 +53,20 @@ New run, new hustle. Day 1 demand surges, story missions, and a full empire loop
 7. **Properties & Businesses** — "Store product off the street and build passive income."
 8. **About & Privacy** — "Offline. No account. No tracking."
 
+## Play Store assets (repo)
+
+| Asset | File |
+|-------|------|
+| 512×512 icon | `store-assets/icon-512.png` |
+| 1024×500 feature graphic | `store-assets/feature-graphic-1024x500.png` |
+| Screenshot checklist | `store-assets/README.md` |
+
+Regenerate icons:
+
+```bash
+npx tsx scripts/generateAppIcons.ts
+```
+
 ## Age / content notes
 
 - **Suggested rating:** Mature 17+ (Apple) / PEGI 16 / ESRB M (content equivalent)

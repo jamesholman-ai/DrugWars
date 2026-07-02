@@ -9,7 +9,7 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# Native (generated locally; EAS Build runs prebuild on CI)
 .kotlin/
 *.orig.*
 *.jks
@@ -21,10 +21,16 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
-# debug
+# debug / logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
+
+# npm cache
+.npm/
+**/.npm-cache/
+target/npmCache/
 
 # macOS
 .DS_Store
@@ -36,10 +42,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
+# local build / cache artifacts (never commit)
+target/
+
+# generated native folders (EAS Build runs prebuild; do not commit local output)
 /ios
 /android
-
-# local build / cache artifacts
-target/
-*.log
